@@ -514,7 +514,7 @@ Cada carpeta de capa incluye un `index.ts` que reexporta sus elementos, de modo 
 
 ---
 
-## Scripts disponibles
+## Scripts disponibles.
 
 | Script | Descripción |
 |---|---|

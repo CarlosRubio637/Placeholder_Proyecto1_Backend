@@ -42,8 +42,7 @@ export class MeResponseDto {
       email: user.email,
       role: user.role,
       fullName: user.profile?.fullName ?? null,
-      // La unidad se agrega cuando User tenga la relación con Unit (H39).
-      unit: null,
+      unit: user.unit ? { id: user.unit.id, code: user.unit.code } : null,
     };
   }
 }

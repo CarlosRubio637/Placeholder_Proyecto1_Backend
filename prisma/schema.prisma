@@ -42,6 +42,10 @@ model User {
   email        String   @unique
   passwordHash String   @map("password_hash")
   role         Role
+  /// Unidad del residente (H38). Obligatoria para RESIDENTE (lo garantiza un
+  /// CHECK en la migración); null para administración y seguridad.
+  unitId       String?  @map("unit_id") @db.Uuid
+  unit         Unit?    @relation(fields: [unitId], references: [id], onDelete: Restrict)
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
@@ -49,6 +53,7 @@ model User {
   profile       Profile?
   refreshTokens RefreshToken[]
 
+  @@index([unitId])
   @@map("users")
 }
 
@@ -116,6 +121,9 @@ model Unit {
   /// registrarse (H38). Sin caracteres ambiguos (I, L, O, 0, 1).
   registrationCode String   @unique @map("registration_code") @db.Char(8)
   createdAt        DateTime @default(now()) @map("created_at")
+
+  /// Cuentas de residentes de la unidad (H38), máximo 4.
+  residents User[]
 
   @@unique([towerId, number])
   @@map("units")

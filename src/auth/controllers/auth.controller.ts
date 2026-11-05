@@ -8,8 +8,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
+  ApiCreatedResponse,
   ApiNoContentResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -17,7 +21,14 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from '@Auth/services';
 import { CurrentUser, Public } from '@Auth/decorators';
-import { AuthResponseDto, LoginDto, MeResponseDto, RefreshTokenDto } from '@Auth/dto';
+import {
+  AuthResponseDto,
+  LoginDto,
+  MeResponseDto,
+  RefreshTokenDto,
+  RegistroDto,
+  RegistroResponseDto,
+} from '@Auth/dto';
 import { UsersService } from '@Users/services';
 import type { User } from '@PrismaClient';
 
@@ -28,6 +39,24 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
   ) {}
+
+  /**
+   * Registro de residentes (H38). Público; siempre asigna el rol RESIDENTE y
+   * la unidad del código de registro. Responde 201 (default de Nest en POST).
+   */
+  @Public()
+  @Post('registro')
+  @ApiOperation({ summary: 'Crea la cuenta de un residente con el código de su unidad' })
+  @ApiCreatedResponse({ type: RegistroResponseDto })
+  @ApiBadRequestResponse({ description: 'Datos inválidos o campos no permitidos (como role).' })
+  @ApiNotFoundResponse({ description: 'El código de unidad no existe.' })
+  @ApiConflictResponse({
+    description: 'Ya existe una cuenta con ese correo, o la unidad ya tiene 4 residentes.',
+  })
+  async registro(@Body() dto: RegistroDto): Promise<RegistroResponseDto> {
+    const user = await this.usersService.registerResident(dto);
+    return RegistroResponseDto.fromEntity(user);
+  }
 
   /**
    * Login. Responde 200 y no 201: no se crea un recurso direccionable, se

@@ -30,17 +30,46 @@ datasource db {
   provider = "postgresql"
 }
 
+/// Rol del usuario (H38). Una cuenta tiene un solo rol.
+enum Role {
+  RESIDENTE
+  ADMINISTRADOR
+  SEGURIDAD
+}
+
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
   passwordHash String   @map("password_hash")
+  role         Role
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
+  profile       Profile?
   refreshTokens RefreshToken[]
 
   @@map("users")
+}
+
+/// Datos personales del usuario (H38), 1 a 1 con User.
+model Profile {
+  id     String @id @default(uuid()) @db.Uuid
+  userId String @unique @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// 2 a 80 caracteres.
+  fullName   String @map("full_name") @db.VarChar(80)
+  /// Nombre en minúsculas y sin tildes, para buscar en el directorio.
+  searchName String @map("search_name") @db.VarChar(80)
+  /// Formato 0000-0000.
+  phone      String @db.VarChar(9)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([searchName])
+  @@map("profiles")
 }
 
 model RefreshToken {

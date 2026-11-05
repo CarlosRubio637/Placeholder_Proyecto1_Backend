@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UnauthorizedException,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiNoContentResponse,
@@ -9,14 +17,17 @@ import {
 } from '@nestjs/swagger';
 import { AuthService } from '@Auth/services';
 import { CurrentUser, Public } from '@Auth/decorators';
-import { AuthResponseDto, LoginDto, RefreshTokenDto } from '@Auth/dto';
-import { UserResponseDto } from '@Users/dto';
+import { AuthResponseDto, LoginDto, MeResponseDto, RefreshTokenDto } from '@Auth/dto';
+import { UsersService } from '@Users/services';
 import type { User } from '@PrismaClient';
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
 
   /**
    * Login. Responde 200 y no 201: no se crea un recurso direccionable, se
@@ -56,13 +67,20 @@ export class AuthController {
     await this.authService.logout(dto.refreshToken);
   }
 
-  /** Usuario autenticado. Protegido por el guard global. */
+  /**
+   * Usuario autenticado con su rol, nombre y unidad (H38). Lo usa el frontend
+   * para decidir qué pantallas y qué menú mostrar. Abierto a cualquier rol.
+   */
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Devuelve el usuario autenticado' })
-  @ApiOkResponse({ type: UserResponseDto })
+  @ApiOkResponse({ type: MeResponseDto })
   @ApiUnauthorizedResponse({ description: 'Token ausente, inválido o expirado.' })
-  me(@CurrentUser() user: User): UserResponseDto {
-    return UserResponseDto.fromEntity(user);
+  async me(@CurrentUser() user: User): Promise<MeResponseDto> {
+    const withProfile = await this.usersService.findByIdWithProfile(user.id);
+    if (!withProfile) {
+      throw new UnauthorizedException('La cuenta no existe o está inactiva.');
+    }
+    return MeResponseDto.fromEntity(withProfile);
   }
 }

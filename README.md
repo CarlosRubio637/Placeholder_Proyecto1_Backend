@@ -78,7 +78,7 @@ cp .env.example .env
 | `POSTGRES_PORT` | `5432` | Puerto publicado en el host |
 | `DATABASE_URL` | — | **Obligatoria.** Connection string de Prisma |
 | `JWT_SECRET` | — | **Obligatoria.** Mínimo 32 caracteres |
-| `JWT_EXPIRES_IN` | `15m` | Vigencia del access token |
+| `JWT_EXPIRES_IN` | `15m` (el proyecto usa `8h`) | Vigencia del access token |
 | `REFRESH_TOKEN_EXPIRES_IN_DAYS` | `7` | Vigencia del refresh token |
 | `BCRYPT_SALT_ROUNDS` | `12` | Cost factor de bcrypt |
 

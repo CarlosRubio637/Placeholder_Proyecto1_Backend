@@ -4,7 +4,7 @@ import { UserRepository } from '@Users/repositories';
 
 // Sin controlador: el POST /users público del boilerplate se eliminó en H38
 // para que nadie cree cuentas sin rol ni unidad. Las cuentas de residentes se
-// crean con POST /auth/registro.
+// van a crear con POST /auth/registro (segunda parte de H38, después de H39).
 @Module({
   providers: [UsersService, UserRepository],
   // Se exporta también el repositorio para que otros módulos puedan reutilizar

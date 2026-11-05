@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@Prisma/services';
 import { EmailAlreadyTakenError } from '@Users/errors';
-import { Prisma, type User } from '@PrismaClient';
+import { Prisma, type Role, type User } from '@PrismaClient';
 
 /** Código de Prisma para violación de restricción única. */
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
@@ -9,7 +9,11 @@ const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 export interface CreateUserData {
   email: string;
   passwordHash: string;
+  role: Role;
 }
+
+/** Usuario con su perfil (H38), para GET /auth/me. */
+export type UserWithProfile = Prisma.UserGetPayload<{ include: { profile: true } }>;
 
 /**
  * Único punto del módulo que habla con la tabla `users`.
@@ -31,10 +35,10 @@ export class UserRepository {
    * insert. El código P2002 de Prisma se traduce a un error de dominio para
    * que la capa de servicio no tenga que conocer los códigos del ORM.
    */
-  async create({ email, passwordHash }: CreateUserData): Promise<User> {
+  async create({ email, passwordHash, role }: CreateUserData): Promise<User> {
     try {
       return await this.prisma.user.create({
-        data: { email: this.normalizeEmail(email), passwordHash },
+        data: { email: this.normalizeEmail(email), passwordHash, role },
       });
     } catch (error) {
       if (
@@ -49,6 +53,13 @@ export class UserRepository {
 
   findById(id: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { id } });
+  }
+
+  findByIdWithProfile(id: string): Promise<UserWithProfile | null> {
+    return this.prisma.user.findUnique({
+      where: { id },
+      include: { profile: true },
+    });
   }
 
   findByEmail(email: string): Promise<User | null> {

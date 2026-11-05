@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from '@Auth';
-import { JwtAuthGuard } from '@Auth/guards';
+import { JwtAuthGuard, RolesGuard } from '@Auth/guards';
 import { HealthModule } from '@Health';
 import { PrismaModule } from '@Prisma';
 import { UsersModule } from '@Users';
@@ -26,6 +26,13 @@ import { validateEnv } from '@Config';
       // Todo cerrado por defecto: las rutas públicas se abren con @Public().
       provide: APP_GUARD,
       useExisting: JwtAuthGuard,
+    },
+    {
+      // Va después de JwtAuthGuard (los guards globales corren en el orden en
+      // que se registran): necesita el usuario que ese guard carga en el
+      // request. Restringe por rol las rutas marcadas con @Roles(...).
+      provide: APP_GUARD,
+      useExisting: RolesGuard,
     },
   ],
 })

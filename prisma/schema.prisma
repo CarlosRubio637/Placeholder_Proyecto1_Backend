@@ -89,3 +89,34 @@ model RefreshToken {
   @@index([userId])
   @@map("refresh_tokens")
 }
+
+/// Torre del condominio (H39).
+model Tower {
+  id     String @id @default(uuid()) @db.Uuid
+  /// "Torre A"
+  name   String @unique @db.VarChar(30)
+  /// "A"
+  letter String @unique @db.Char(1)
+  units  Unit[]
+
+  @@map("towers")
+}
+
+/// Unidad (apartamento) de una torre (H39).
+model Unit {
+  id      String @id @default(uuid()) @db.Uuid
+  towerId String @map("tower_id") @db.Uuid
+  tower   Tower  @relation(fields: [towerId], references: [id])
+
+  /// Número dentro de la torre: piso + posición, "101".."404".
+  number           String   @db.Char(3)
+  /// Código visible de la unidad, "A-101".
+  code             String   @unique @db.VarChar(5)
+  /// Código de 8 caracteres que la administración entrega al residente para
+  /// registrarse (H38). Sin caracteres ambiguos (I, L, O, 0, 1).
+  registrationCode String   @unique @map("registration_code") @db.Char(8)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@unique([towerId, number])
+  @@map("units")
+}

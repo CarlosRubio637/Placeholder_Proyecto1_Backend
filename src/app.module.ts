@@ -9,6 +9,8 @@ import { UsersModule } from '@Users';
 import { NotificationsModule } from '@Notifications';
 import { IncidentsModule } from '@Incidents';
 import { validateEnv } from '@Config';
+import { AssembliesModule } from './admin/assemblies/assemblies.module.js';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { validateEnv } from '@Config';
     NotificationsModule,
     IncidentsModule,
     AuthModule,
+    AssembliesModule,
+    ScheduleModule.forRoot(),
   ],
   providers: [
     {

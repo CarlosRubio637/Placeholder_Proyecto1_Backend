@@ -432,6 +432,7 @@ Definidos en [tsconfig.json](tsconfig.json):
 |---|---|
 | `@Auth`, `@Auth/*` | `src/auth/index.ts`, `src/auth/*/index.ts` |
 | `@Users`, `@Users/*` | `src/users/…` |
+| `@Notifications`, `@Notifications/*` | `src/notifications/…` |
 | `@Health`, `@Health/*` | `src/health/…` |
 | `@Prisma`, `@Prisma/*` | `src/prisma/…` |
 | `@Common/*` | `src/common/*/index.ts` |

@@ -41,6 +41,8 @@
       "@Auth/*": ["./src/auth/*/index.ts"],
       "@Users": ["./src/users/index.ts"],
       "@Users/*": ["./src/users/*/index.ts"],
+      "@Notifications": ["./src/notifications/index.ts"],
+      "@Notifications/*": ["./src/notifications/*/index.ts"],
       "@Health": ["./src/health/index.ts"],
       "@Health/*": ["./src/health/*/index.ts"],
       "@Prisma": ["./src/prisma/index.ts"],

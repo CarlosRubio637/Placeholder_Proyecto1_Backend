@@ -50,9 +50,13 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  profile       Profile?
-  refreshTokens RefreshToken[]
-  notifications Notification[]
+  profile           Profile?
+  refreshTokens     RefreshToken[]
+  notifications     Notification[]
+  /// Incidencias que reportó (H10).
+  reportedIncidents Incident[]      @relation("IncidentReporter")
+  /// Eventos del historial de incidencias que registró (H10-H13).
+  incidentEvents    IncidentEvent[]
 
   @@index([unitId])
   @@map("users")
@@ -125,6 +129,7 @@ model Unit {
 
   /// Cuentas de residentes de la unidad (H38), máximo 4.
   residents User[]
+  incidents Incident[]
 
   @@unique([towerId, number])
   @@map("units")
@@ -165,4 +170,157 @@ model Notification {
 
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+// ---------------------------------------------------------------------------
+// Módulo 3: incidencias (H10; H11-H13 usan los mismos modelos)
+// ---------------------------------------------------------------------------
+
+/// Lugar del condominio donde ocurre la incidencia (H10).
+enum IncidentLocation {
+  TORRE_A
+  TORRE_B
+  TORRE_C
+  ESTACIONAMIENTO
+  PISCINA
+  GIMNASIO
+  SALON
+  ASADOR
+  LOBBY
+  AREAS_VERDES
+  OTRA
+}
+
+enum IncidentStatus {
+  PENDIENTE
+  EN_PROCESO
+  RESUELTO
+}
+
+enum IncidentPriority {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+/// Tipo de evento del historial (definido en H13).
+enum IncidentEventType {
+  CREACION
+  ESTADO
+  PRIORIDAD
+  ASIGNACION
+}
+
+/// Responsable de mantenimiento (definido en H12). Catálogo sin acceso al
+/// sistema; lo carga el script de datos iniciales (H39).
+model MaintenanceStaff {
+  id        String   @id @default(uuid()) @db.Uuid
+  /// 3 a 80 caracteres.
+  name      String   @db.VarChar(80)
+  /// "Fontanería", "Electricidad"… Máximo 40 caracteres.
+  specialty String   @db.VarChar(40)
+  /// Formato 0000-0000.
+  phone     String   @db.VarChar(9)
+  /// Borrado lógico.
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  incidents Incident[]
+
+  @@map("maintenance_staff")
+}
+
+/// Incidencia reportada por un residente (H10). No se borran.
+model Incident {
+  id     String @id @default(uuid()) @db.Uuid
+  /// INC-AAAA-NNNNN: año y consecutivo anual (ver IncidentCounter).
+  number String @unique @db.VarChar(14)
+
+  unitId     String @map("unit_id") @db.Uuid
+  unit       Unit   @relation(fields: [unitId], references: [id])
+  /// Residente que la reportó.
+  reporterId String @map("reporter_id") @db.Uuid
+  reporter   User   @relation("IncidentReporter", fields: [reporterId], references: [id])
+
+  /// 5 a 80 caracteres.
+  title          String           @db.VarChar(80)
+  /// 10 a 1,000 caracteres.
+  description    String           @db.VarChar(1000)
+  location       IncidentLocation
+  /// "Piso 3, pasillo norte". Máximo 100 caracteres.
+  locationDetail String?          @map("location_detail") @db.VarChar(100)
+  /// Número y título en minúsculas y sin tildes, para la búsqueda de H12.
+  searchKey      String           @map("search_key") @db.VarChar(100)
+
+  status     IncidentStatus    @default(PENDIENTE)
+  priority   IncidentPriority  @default(MEDIA)
+  /// Responsable de mantenimiento asignado (H12).
+  assigneeId String?           @map("assignee_id") @db.Uuid
+  assignee   MaintenanceStaff? @relation(fields: [assigneeId], references: [id])
+  /// Se llena al pasar a Resuelto y se borra al reabrir (H13).
+  resolvedAt DateTime?         @map("resolved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  photos IncidentPhoto[]
+  events IncidentEvent[]
+
+  @@index([unitId, createdAt])
+  @@index([status, priority, createdAt])
+  @@map("incidents")
+}
+
+/// Fotografía de una incidencia (H10): de 1 a 3 por incidencia.
+model IncidentPhoto {
+  id         String   @id @default(uuid()) @db.Uuid
+  incidentId String   @map("incident_id") @db.Uuid
+  incident   Incident @relation(fields: [incidentId], references: [id])
+
+  /// Ruta interna relativa a la carpeta de uploads: incidencias/<id>/<archivo>.
+  path      String   @db.VarChar(255)
+  /// image/jpeg o image/png.
+  mimeType  String   @map("mime_type") @db.VarChar(20)
+  /// Máximo 5,242,880 (5 MB).
+  sizeBytes Int      @map("size_bytes")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([incidentId])
+  @@map("incident_photos")
+}
+
+/// Evento del historial de una incidencia (definido en H13; H10 crea el
+/// primero). Los eventos no se modifican ni se borran.
+model IncidentEvent {
+  id         String            @id @default(uuid()) @db.Uuid
+  incidentId String            @map("incident_id") @db.Uuid
+  incident   Incident          @relation(fields: [incidentId], references: [id])
+  type       IncidentEventType
+
+  /// Solo en eventos ESTADO.
+  fromStatus IncidentStatus? @map("from_status")
+  toStatus   IncidentStatus? @map("to_status")
+  /// Prioridad o responsable anterior y nuevo (PRIORIDAD, ASIGNACION).
+  fromValue  String?         @map("from_value") @db.VarChar(100)
+  toValue    String?         @map("to_value") @db.VarChar(100)
+  /// Máximo 500 caracteres; obligatorio en eventos ESTADO.
+  note       String?         @db.VarChar(500)
+
+  authorId  String   @map("author_id") @db.Uuid
+  author    User     @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([incidentId, createdAt])
+  @@map("incident_events")
+}
+
+/// Último consecutivo usado por año para el número INC-AAAA-NNNNN (H10).
+/// Se incrementa con INSERT ... ON CONFLICT dentro de la transacción que crea
+/// la incidencia, así dos registros simultáneos nunca reciben el mismo número.
+model IncidentCounter {
+  year Int @id
+  last Int
+
+  @@map("incident_counters")
 }

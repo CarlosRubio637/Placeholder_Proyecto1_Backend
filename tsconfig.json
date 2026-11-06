@@ -43,6 +43,8 @@
       "@Users/*": ["./src/users/*/index.ts"],
       "@Notifications": ["./src/notifications/index.ts"],
       "@Notifications/*": ["./src/notifications/*/index.ts"],
+      "@Incidents": ["./src/incidents/index.ts"],
+      "@Incidents/*": ["./src/incidents/*/index.ts"],
       "@Health": ["./src/health/index.ts"],
       "@Health/*": ["./src/health/*/index.ts"],
       "@Prisma": ["./src/prisma/index.ts"],

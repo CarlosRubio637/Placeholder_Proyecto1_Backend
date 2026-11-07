@@ -54,24 +54,26 @@ model User {
   refreshTokens         RefreshToken[]
   notifications         Notification[]
   /// Incidencias que reportó (H10).
-  reportedIncidents     Incident[]      @relation("IncidentReporter")
+  reportedIncidents     Incident[]              @relation("IncidentReporter")
   /// Asambleas que convocó (H22).
   assembliesCreated     Assembly[]
   /// Eventos del historial de incidencias que registró (H10-H13).
   incidentEvents        IncidentEvent[]
   /// Paquetes que registró como agente de seguridad (H19).
-  receivedPackages      Package[]       @relation("PackageReceiver")
+  receivedPackages      Package[]               @relation("PackageReceiver")
   /// Paquetes que entregó como agente de seguridad (H21).
-  deliveredPackages     Package[]       @relation("PackageDeliverer")
+  deliveredPackages     Package[]               @relation("PackageDeliverer")
   /// Áreas comunes que modificó por última vez (H9).
-  updatedAreas          CommonArea[]    @relation("CommonAreaUpdatedBy")
+  updatedAreas          CommonArea[]            @relation("CommonAreaUpdatedBy")
   /// Bloqueos de áreas que registró (H9).
   areaBlocks            AreaBlock[]
   /// Reservas que hizo como residente (H7).
-  reservations          Reservation[]   @relation("ReservationUser")
+  reservations          Reservation[]           @relation("ReservationUser")
   /// Reservas que canceló (H8 el residente, H9 la administración).
-  cancelledReservations Reservation[]   @relation("ReservationCancelledBy")
+  cancelledReservations Reservation[]           @relation("ReservationCancelledBy")
   feeGenerations        FeeGeneration[]
+  announcementsCreated  Announcement[]
+  announcementReceipts  AnnouncementRecipient[]
 
   @@index([unitId])
   @@map("users")
@@ -117,12 +119,13 @@ model RefreshToken {
 
 /// Torre del condominio (H39).
 model Tower {
-  id     String @id @default(uuid()) @db.Uuid
+  id            String              @id @default(uuid()) @db.Uuid
   /// "Torre A"
-  name   String @unique @db.VarChar(30)
+  name          String              @unique @db.VarChar(30)
   /// "A"
-  letter String @unique @db.Char(1)
-  units  Unit[]
+  letter        String              @unique @db.Char(1)
+  units         Unit[]
+  announcements AnnouncementTower[]
 
   @@map("towers")
 }
@@ -143,15 +146,16 @@ model Unit {
   createdAt        DateTime @default(now()) @map("created_at")
 
   /// Cuentas de residentes de la unidad (H38), máximo 4.
-  residents          User[]
+  residents              User[]
   /// Reservas de áreas comunes de la unidad (H7).
-  reservations       Reservation[]
-  incidents          Incident[]
+  reservations           Reservation[]
+  incidents              Incident[]
   /// Paquetes que llegaron para la unidad (H19).
-  packages           Package[]
+  packages               Package[]
   /// Asambleas en las que la unidad quedó habilitada para votar (H22).
-  eligibleAssemblies AssemblyEligibleUnit[]
-  fees               Fee[]
+  eligibleAssemblies     AssemblyEligibleUnit[]
+  fees                   Fee[]
+  announcementRecipients AnnouncementRecipient[]
 
   @@unique([towerId, number])
   @@map("units")
@@ -634,4 +638,61 @@ model Fee {
 
   @@unique([unitId, period])
   @@map("fees")
+}
+
+// ---------------------------------------------------------------------------
+// Módulo 7: comunicados (H25, H26, H27)
+// ---------------------------------------------------------------------------
+
+enum AnnouncementCategory {
+  CORTE_SERVICIO
+  MANTENIMIENTO
+  AVISO_GENERAL
+}
+
+enum AudienceType {
+  TODOS
+  TORRES
+}
+
+model Announcement {
+  id          String                  @id @default(uuid()) @db.Uuid
+  title       String                  @db.VarChar(100)
+  body        String                  @db.VarChar(2000)
+  category    AnnouncementCategory
+  audience    AudienceType
+  publishedAt DateTime                @default(now()) @map("published_at")
+  expiresOn   DateTime                @map("expires_on") @db.Date
+  createdById String                  @map("created_by_id") @db.Uuid
+  createdBy   User                    @relation(fields: [createdById], references: [id])
+  towers      AnnouncementTower[]
+  recipients  AnnouncementRecipient[]
+
+  @@index([publishedAt])
+  @@map("announcements")
+}
+
+model AnnouncementTower {
+  announcementId String       @map("announcement_id") @db.Uuid
+  announcement   Announcement @relation(fields: [announcementId], references: [id])
+  towerId        String       @map("tower_id") @db.Uuid
+  tower          Tower        @relation(fields: [towerId], references: [id])
+
+  @@id([announcementId, towerId])
+  @@map("announcement_towers")
+}
+
+model AnnouncementRecipient {
+  id             String       @id @default(uuid()) @db.Uuid
+  announcementId String       @map("announcement_id") @db.Uuid
+  announcement   Announcement @relation(fields: [announcementId], references: [id])
+  userId         String       @map("user_id") @db.Uuid
+  user           User         @relation(fields: [userId], references: [id])
+  unitId         String       @map("unit_id") @db.Uuid
+  unit           Unit         @relation(fields: [unitId], references: [id])
+  readAt         DateTime?    @map("read_at")
+
+  @@unique([announcementId, userId])
+  @@index([userId])
+  @@map("announcement_recipients")
 }

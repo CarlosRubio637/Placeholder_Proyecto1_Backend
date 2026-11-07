@@ -9,6 +9,7 @@ import { UsersModule } from '@Users';
 import { NotificationsModule } from '@Notifications';
 import { IncidentsModule } from '@Incidents';
 import { ReservationsModule } from '@Reservations';
+import { AnnouncementsModule } from '@Announcements';
 import { validateEnv } from '@Config';
 import { UnitsModule } from './units/units.module.js';
 import { TowersModule } from './towers/towers.module.js';
@@ -30,6 +31,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     NotificationsModule,
     IncidentsModule,
     ReservationsModule,
+    AnnouncementsModule,
     AuthModule,
     UnitsModule,
     TowersModule,

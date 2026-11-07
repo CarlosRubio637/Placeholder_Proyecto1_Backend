@@ -15,8 +15,16 @@ import {
 } from '@Notifications';
 import { toSearchName } from '@Users/services';
 import { Role, type User } from '@PrismaClient';
-import type { CreateIncidentDto } from '../dto/index.js';
-import { IncidentCreatedDto } from '../dto/index.js';
+import type {
+  CreateIncidentDto,
+  IncidentListDto,
+  ListMyIncidentsQuery,
+} from '../dto/index.js';
+import {
+  IncidentCreatedDto,
+  IncidentDetailDto,
+  IncidentListItemDto,
+} from '../dto/index.js';
 import {
   IncidentRepository,
   type IncidentWithPhotos,
@@ -100,19 +108,56 @@ export class IncidentsService {
   }
 
   /**
+   * "Mis incidencias" (H11): las de la unidad del residente, sin importar qué
+   * residente de la unidad las reportó. La unidad sale de la sesión, nunca de
+   * la consulta.
+   */
+  async listMine(
+    resident: User,
+    query: ListMyIncidentsQuery,
+  ): Promise<IncidentListDto> {
+    if (!resident.unitId) {
+      throw new ForbiddenException(FORBIDDEN_BODY);
+    }
+    const { data, total } = await this.repository.listByUnit({
+      unitId: resident.unitId,
+      status: query.status,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+    return {
+      data: data.map((item) => IncidentListItemDto.fromEntity(item)),
+      total,
+      page: query.page,
+      pageSize: query.pageSize,
+    };
+  }
+
+  /**
+   * Detalle con fotos, responsable e historial (H11). Lo ve el Administrador o
+   * un residente de la unidad; a un residente de otra unidad se le responde
+   * 404, igual que si no existiera, para no revelar que existe.
+   */
+  async getDetail(
+    viewer: User,
+    incidentId: string,
+  ): Promise<IncidentDetailDto> {
+    const incident = await this.repository.findDetail(incidentId);
+    if (!incident || !this.canSee(viewer, incident.unitId)) {
+      throw new NotFoundException('La incidencia no existe.');
+    }
+    return IncidentDetailDto.fromEntity(incident);
+  }
+
+  /**
    * Archivo de una fotografía. La ve el Administrador o un residente de la
-   * unidad de la incidencia (el guard ya dejó fuera a Seguridad).
+   * unidad de la incidencia (el guard ya dejó fuera a Seguridad). A un
+   * residente de otra unidad se le responde 404 (H11).
    */
   async getPhoto(viewer: User, photoId: string) {
     const photo = await this.repository.findPhoto(photoId);
-    if (!photo) {
+    if (!photo || !this.canSee(viewer, photo.incident.unitId)) {
       throw new NotFoundException('La fotografía no existe.');
-    }
-    if (
-      viewer.role === Role.RESIDENTE &&
-      photo.incident.unitId !== viewer.unitId
-    ) {
-      throw new ForbiddenException(FORBIDDEN_BODY);
     }
 
     const file = await this.storage.open(photo.path);
@@ -121,6 +166,12 @@ export class IncidentsService {
       throw new NotFoundException('La fotografía no existe.');
     }
     return { ...file, mimeType: photo.mimeType };
+  }
+
+  /** Administrador: todas. Residente: solo las de su unidad. */
+  private canSee(viewer: User, incidentUnitId: string): boolean {
+    if (viewer.role === Role.ADMINISTRADOR) return true;
+    return viewer.role === Role.RESIDENTE && viewer.unitId === incidentUnitId;
   }
 
   private validatePhotos(files: UploadedPhoto[]): PhotoToSave[] {

@@ -8,10 +8,13 @@ import { PrismaModule } from '@Prisma';
 import { UsersModule } from '@Users';
 import { NotificationsModule } from '@Notifications';
 import { IncidentsModule } from '@Incidents';
+import { ReservationsModule } from '@Reservations';
 import { validateEnv } from '@Config';
 import { UnitsModule } from './units/units.module.js';
 import { TowersModule } from './towers/towers.module.js';
 import { PackagesModule } from './packages/packages.module.js';
+import { AssembliesModule } from './admin/assemblies/assemblies.module.js';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -26,10 +29,13 @@ import { PackagesModule } from './packages/packages.module.js';
     UsersModule,
     NotificationsModule,
     IncidentsModule,
+    ReservationsModule,
     AuthModule,
     UnitsModule,
     TowersModule,
     PackagesModule,
+    AssembliesModule,
+    ScheduleModule.forRoot(),
   ],
   providers: [
     {

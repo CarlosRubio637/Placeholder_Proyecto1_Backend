@@ -241,11 +241,32 @@ npm run db:reset
 
 ### Seed
 
-[prisma/seed.ts](prisma/seed.ts) crea un usuario de prueba mediante `upsert`, así que se puede correr las veces que haga falta:
+[prisma/seed.ts](prisma/seed.ts) carga los datos iniciales del condominio (H39). Usa `upsert` por código o correo, así que se puede correr las veces que haga falta sin duplicar nada ni pisar cambios hechos al probar.
 
-| Email | Contraseña |
-|---|---|
-| `demo@example.com` | `Demo1234!` |
+- **Torres y unidades:** 3 torres (A, B, C) con 4 pisos de 4 unidades: 48 unidades, de `A-101` a `C-404`, cada una con su código de registro de 8 caracteres.
+- **Responsables de mantenimiento:** Pedro Alvarado (Fontanería), Miguel Torres (Electricidad) y Rosa Méndez (Mantenimiento general).
+- **Áreas comunes:** Salón de eventos, Piscina, Gimnasio y Asador.
+- **Cuentas de prueba**, todas con la contraseña `Prueba2026`:
+
+| Correo | Rol | Nombre | Unidad |
+|---|---|---|---|
+| `admin@condominio.test` | Administrador | Laura Martínez | — |
+| `seguridad1@condominio.test` | Seguridad | Mario Rivas | — |
+| `seguridad2@condominio.test` | Seguridad | José Hernández | — |
+| `residente1@condominio.test` | Residente | Ana Gómez | A-101 |
+| `residente2@condominio.test` | Residente | Luis Gómez | A-101 |
+| `residente3@condominio.test` | Residente | Carmen Flores | A-102 |
+| `residente4@condominio.test` | Residente | Roberto Díaz | B-101 |
+| `residente5@condominio.test` | Residente | Sofía Castillo | B-203 |
+| `residente6@condominio.test` | Residente | Daniel Ramos | C-304 |
+
+También se mantiene la cuenta `demo@example.com` / `Demo1234!` (Administrador) del boilerplate.
+
+Para ver el código de registro de una unidad:
+
+```bash
+docker compose exec postgres psql -U postgres -d si_be_boilerplate -c "select code, registration_code from units order by code"
+```
 
 ---
 

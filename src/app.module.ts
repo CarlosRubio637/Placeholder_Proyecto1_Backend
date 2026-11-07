@@ -11,6 +11,8 @@ import { IncidentsModule } from '@Incidents';
 import { ReservationsModule } from '@Reservations';
 import { FeesModule } from '@Fees';
 import { validateEnv } from '@Config';
+import { AssembliesModule } from './admin/assemblies/assemblies.module.js';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { validateEnv } from '@Config';
     ReservationsModule,
     FeesModule,
     AuthModule,
+    AssembliesModule,
+    ScheduleModule.forRoot(),
   ],
   providers: [
     {

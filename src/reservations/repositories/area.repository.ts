@@ -62,7 +62,7 @@ export type AreaWithStats = CommonArea & {
  * Reserva confirmada que todavía no empieza: fecha futura, o de hoy con la
  * hora de inicio por delante. Las pasadas nunca se modifican (H9).
  */
-function futureConfirmed(clock: Clock): Prisma.ReservationWhereInput {
+export function futureConfirmed(clock: Clock): Prisma.ReservationWhereInput {
   return {
     status: ReservationStatus.CONFIRMADA,
     OR: [

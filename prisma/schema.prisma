@@ -50,13 +50,21 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  profile           Profile?
-  refreshTokens     RefreshToken[]
-  notifications     Notification[]
+  profile               Profile?
+  refreshTokens         RefreshToken[]
+  notifications         Notification[]
   /// Incidencias que reportó (H10).
-  reportedIncidents Incident[]      @relation("IncidentReporter")
+  reportedIncidents     Incident[]      @relation("IncidentReporter")
   /// Eventos del historial de incidencias que registró (H10-H13).
-  incidentEvents    IncidentEvent[]
+  incidentEvents        IncidentEvent[]
+  /// Áreas comunes que modificó por última vez (H9).
+  updatedAreas          CommonArea[]    @relation("CommonAreaUpdatedBy")
+  /// Bloqueos de áreas que registró (H9).
+  areaBlocks            AreaBlock[]
+  /// Reservas que hizo como residente (H7).
+  reservations          Reservation[]   @relation("ReservationUser")
+  /// Reservas que canceló (H8 el residente, H9 la administración).
+  cancelledReservations Reservation[]   @relation("ReservationCancelledBy")
 
   @@index([unitId])
   @@map("users")
@@ -128,8 +136,10 @@ model Unit {
   createdAt        DateTime @default(now()) @map("created_at")
 
   /// Cuentas de residentes de la unidad (H38), máximo 4.
-  residents User[]
-  incidents Incident[]
+  residents    User[]
+  /// Reservas de áreas comunes de la unidad (H7).
+  reservations Reservation[]
+  incidents    Incident[]
 
   @@unique([towerId, number])
   @@map("units")
@@ -323,4 +333,107 @@ model IncidentCounter {
   last Int
 
   @@map("incident_counters")
+}
+
+// --- Módulo 2: reservas de áreas comunes (H9, H7, H6, H8) -------------------
+
+/// Estado de una reserva. CANCELADA la cancela el residente (H8);
+/// CANCELADA_ADMIN, la administración al cambiar o bloquear el área (H9).
+enum ReservationStatus {
+  CONFIRMADA
+  CANCELADA
+  CANCELADA_ADMIN
+}
+
+/// Área común reservable (H9). No se borra: se deshabilita con isActive.
+model CommonArea {
+  id          String  @id @default(uuid()) @db.Uuid
+  /// 3 a 50 caracteres.
+  name        String  @db.VarChar(50)
+  /// Nombre en minúsculas y sin tildes: evita duplicados como "Piscina" y "piscina".
+  nameKey     String  @unique @map("name_key") @db.VarChar(50)
+  /// Aforo máximo, de 1 a 500 personas.
+  capacity    Int
+  /// Máximo 500 caracteres.
+  rules       String? @db.VarChar(500)
+  /// "HH:mm" en pasos de 30 minutos; el cierre es posterior a la apertura.
+  openTime    String  @map("open_time") @db.Char(5)
+  closeTime   String  @map("close_time") @db.Char(5)
+  /// Duración de cada franja: 60 o 120 minutos.
+  slotMinutes Int     @map("slot_minutes")
+  isActive    Boolean @default(true) @map("is_active")
+
+  /// Último administrador que la modificó.
+  updatedById String? @map("updated_by_id") @db.Uuid
+  updatedBy   User?   @relation("CommonAreaUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  blocks       AreaBlock[]
+  reservations Reservation[]
+
+  @@map("common_areas")
+}
+
+/// Bloqueo de un área por mantenimiento (H9). Se borra físicamente; borrarlo
+/// no restaura las reservas que canceló.
+model AreaBlock {
+  id     String     @id @default(uuid()) @db.Uuid
+  areaId String     @map("area_id") @db.Uuid
+  area   CommonArea @relation(fields: [areaId], references: [id], onDelete: Restrict)
+
+  /// Rango inclusivo de 1 a 90 días.
+  startDate DateTime @map("start_date") @db.Date
+  endDate   DateTime @map("end_date") @db.Date
+  /// 5 a 200 caracteres.
+  reason    String   @db.VarChar(200)
+
+  createdById String   @map("created_by_id") @db.Uuid
+  createdBy   User     @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([areaId, endDate])
+  @@map("area_blocks")
+}
+
+/// Reserva de una franja de un área (H7). La crea H9 porque H9 cancela
+/// reservas; H7 agrega el endpoint para reservar.
+model Reservation {
+  id   String @id @default(uuid()) @db.Uuid
+  /// RS-AAAAMMDD-NNNN, único.
+  code String @unique @db.VarChar(16)
+
+  areaId String     @map("area_id") @db.Uuid
+  area   CommonArea @relation(fields: [areaId], references: [id], onDelete: Restrict)
+  unitId String     @map("unit_id") @db.Uuid
+  unit   Unit       @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  /// Residente que reservó.
+  userId String     @map("user_id") @db.Uuid
+  user   User       @relation("ReservationUser", fields: [userId], references: [id], onDelete: Restrict)
+
+  date      DateTime @db.Date
+  /// "HH:mm"; coinciden con una franja del área.
+  startTime String   @map("start_time") @db.Char(5)
+  endTime   String   @map("end_time") @db.Char(5)
+  /// De 1 al aforo del área.
+  attendees Int
+
+  status  ReservationStatus @default(CONFIRMADA)
+  /// "<areaId>|<fecha>|<inicio>", único y lleno solo mientras está CONFIRMADA:
+  /// la base impide dos reservas confirmadas en la misma franja (H7).
+  slotKey String?           @unique @map("slot_key") @db.VarChar(60)
+
+  cancelledAt   DateTime? @map("cancelled_at")
+  cancelledById String?   @map("cancelled_by_id") @db.Uuid
+  cancelledBy   User?     @relation("ReservationCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+  /// Máximo 200 caracteres.
+  cancelReason  String?   @map("cancel_reason") @db.VarChar(200)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([areaId, status, date])
+  @@index([unitId, status])
+  @@map("reservations")
 }

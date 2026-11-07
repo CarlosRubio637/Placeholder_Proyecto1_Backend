@@ -8,6 +8,7 @@ import { PrismaModule } from '@Prisma';
 import { UsersModule } from '@Users';
 import { NotificationsModule } from '@Notifications';
 import { IncidentsModule } from '@Incidents';
+import { ReservationsModule } from '@Reservations';
 import { validateEnv } from '@Config';
 import { AssembliesModule } from './admin/assemblies/assemblies.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -25,6 +26,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     UsersModule,
     NotificationsModule,
     IncidentsModule,
+    ReservationsModule,
     AuthModule,
     AssembliesModule,
     ScheduleModule.forRoot(),

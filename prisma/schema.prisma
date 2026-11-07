@@ -55,6 +55,8 @@ model User {
   notifications         Notification[]
   /// Incidencias que reportó (H10).
   reportedIncidents     Incident[]      @relation("IncidentReporter")
+  /// Asambleas que convocó (H22).
+  assembliesCreated     Assembly[]
   /// Eventos del historial de incidencias que registró (H10-H13).
   incidentEvents        IncidentEvent[]
   /// Áreas comunes que modificó por última vez (H9).
@@ -136,10 +138,12 @@ model Unit {
   createdAt        DateTime @default(now()) @map("created_at")
 
   /// Cuentas de residentes de la unidad (H38), máximo 4.
-  residents    User[]
+  residents          User[]
   /// Reservas de áreas comunes de la unidad (H7).
-  reservations Reservation[]
-  incidents    Incident[]
+  reservations       Reservation[]
+  incidents          Incident[]
+  /// Asambleas en las que la unidad quedó habilitada para votar (H22).
+  eligibleAssemblies AssemblyEligibleUnit[]
 
   @@unique([towerId, number])
   @@map("units")
@@ -436,4 +440,80 @@ model Reservation {
   @@index([areaId, status, date])
   @@index([unitId, status])
   @@map("reservations")
+}
+
+/// Estado de una asamblea (H22). El cambio lo hace una tarea programada.
+enum AssemblyStatus {
+  PROGRAMADA
+  ABIERTA
+  CERRADA
+}
+
+/// Asamblea de votación (H22).
+model Assembly {
+  id          String         @id @default(uuid()) @db.Uuid
+  /// 5 a 100 caracteres.
+  title       String         @db.VarChar(100)
+  /// Máximo 1,000 caracteres.
+  description String?        @db.VarChar(1000)
+  startsAt    DateTime       @map("starts_at")
+  endsAt      DateTime       @map("ends_at")
+  status      AssemblyStatus @default(PROGRAMADA)
+  /// Momento real de apertura y de cierre.
+  openedAt    DateTime?      @map("opened_at")
+  closedAt    DateTime?      @map("closed_at")
+  createdById String         @map("created_by_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  createdBy     User                   @relation(fields: [createdById], references: [id])
+  topics        AssemblyTopic[]
+  eligibleUnits AssemblyEligibleUnit[]
+
+  @@index([status, startsAt])
+  @@index([status, endsAt])
+  @@map("assemblies")
+}
+
+/// Tema de la agenda (H22): de 1 a 10 por asamblea.
+model AssemblyTopic {
+  id         String @id @default(uuid()) @db.Uuid
+  assemblyId String @map("assembly_id") @db.Uuid
+  /// 1 a 10.
+  order      Int
+  /// 5 a 200 caracteres.
+  question   String @db.VarChar(200)
+
+  assembly Assembly      @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  options  TopicOption[]
+
+  @@unique([assemblyId, order])
+  @@map("assembly_topics")
+}
+
+/// Opción de voto de un tema (H22): de 2 a 6 por tema.
+model TopicOption {
+  id      String @id @default(uuid()) @db.Uuid
+  topicId String @map("topic_id") @db.Uuid
+  /// 1 a 80 caracteres.
+  text    String @db.VarChar(80)
+  /// 1 a 6.
+  order   Int
+
+  topic AssemblyTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, text])
+  @@map("topic_options")
+}
+
+/// Unidades habilitadas para votar. Se crean al abrir la asamblea y no cambian.
+model AssemblyEligibleUnit {
+  assemblyId String @map("assembly_id") @db.Uuid
+  unitId     String @map("unit_id") @db.Uuid
+
+  assembly Assembly @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  unit     Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@id([assemblyId, unitId])
+  @@map("assembly_eligible_units")
 }

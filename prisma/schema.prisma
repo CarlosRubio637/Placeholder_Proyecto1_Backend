@@ -58,10 +58,11 @@ model User {
   /// Asambleas que convocó (H22).
   assembliesCreated     Assembly[]
   /// Eventos del historial de incidencias que registró (H10-H13).
-  incidentEvents    IncidentEvent[]
-  receivedPackages  Package[] @relation("PackageReceiver")
-  deliveredPackages Package[] @relation("PackageDeliverer")
   incidentEvents        IncidentEvent[]
+  /// Paquetes que registró como agente de seguridad (H19).
+  receivedPackages      Package[]       @relation("PackageReceiver")
+  /// Paquetes que entregó como agente de seguridad (H21).
+  deliveredPackages     Package[]       @relation("PackageDeliverer")
   /// Áreas comunes que modificó por última vez (H9).
   updatedAreas          CommonArea[]    @relation("CommonAreaUpdatedBy")
   /// Bloqueos de áreas que registró (H9).
@@ -142,13 +143,12 @@ model Unit {
   createdAt        DateTime @default(now()) @map("created_at")
 
   /// Cuentas de residentes de la unidad (H38), máximo 4.
-  residents User[]
-  incidents Incident[]
-  packages  Package[]
   residents          User[]
   /// Reservas de áreas comunes de la unidad (H7).
   reservations       Reservation[]
   incidents          Incident[]
+  /// Paquetes que llegaron para la unidad (H19).
+  packages           Package[]
   /// Asambleas en las que la unidad quedó habilitada para votar (H22).
   eligibleAssemblies AssemblyEligibleUnit[]
   fees               Fee[]
@@ -393,6 +393,26 @@ model Package {
   pickedUpByDocType   DocumentType? @map("picked_up_by_doc_type")
   /// Según el tipo de documento.
   pickedUpByDocNumber String?       @map("picked_up_by_doc_number") @db.VarChar(20)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, receivedAt])
+  @@index([unitId, status])
+  @@map("packages")
+}
+
+/// Último consecutivo usado por día para el código PQ-AAAAMMDD-NNNN (H19).
+/// Mismo patrón que IncidentCounter: se incrementa con INSERT ... ON CONFLICT
+/// dentro de la transacción que crea el paquete.
+model PackageCounter {
+  /// AAAAMMDD
+  day  String @id @db.Char(8)
+  last Int
+
+  @@map("package_counters")
+}
+
 // --- Módulo 2: reservas de áreas comunes (H9, H7, H6, H8) -------------------
 
 /// Estado de una reserva. CANCELADA la cancela el residente (H8);
@@ -428,21 +448,6 @@ model CommonArea {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  @@index([status, receivedAt])
-  @@index([unitId, status])
-  @@map("packages")
-}
-
-/// Último consecutivo usado por día para el código PQ-AAAAMMDD-NNNN (H19).
-/// Mismo patrón que IncidentCounter: se incrementa con INSERT ... ON CONFLICT
-/// dentro de la transacción que crea el paquete.
-model PackageCounter {
-  /// AAAAMMDD
-  day  String @id @db.Char(8)
-  last Int
-
-  @@map("package_counters")
-}
   blocks       AreaBlock[]
   reservations Reservation[]
 

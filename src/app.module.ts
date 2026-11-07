@@ -9,6 +9,7 @@ import { UsersModule } from '@Users';
 import { NotificationsModule } from '@Notifications';
 import { IncidentsModule } from '@Incidents';
 import { ReservationsModule } from '@Reservations';
+import { FeesModule } from '@Fees';
 import { validateEnv } from '@Config';
 
 @Module({
@@ -25,6 +26,7 @@ import { validateEnv } from '@Config';
     NotificationsModule,
     IncidentsModule,
     ReservationsModule,
+    FeesModule,
     AuthModule,
   ],
   providers: [

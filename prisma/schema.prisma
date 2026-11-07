@@ -65,6 +65,7 @@ model User {
   reservations          Reservation[]   @relation("ReservationUser")
   /// Reservas que canceló (H8 el residente, H9 la administración).
   cancelledReservations Reservation[]   @relation("ReservationCancelledBy")
+  feeGenerations        FeeGeneration[]
 
   @@index([unitId])
   @@map("users")
@@ -140,6 +141,7 @@ model Unit {
   /// Reservas de áreas comunes de la unidad (H7).
   reservations Reservation[]
   incidents    Incident[]
+  fees         Fee[]
 
   @@unique([towerId, number])
   @@map("units")
@@ -436,4 +438,48 @@ model Reservation {
   @@index([areaId, status, date])
   @@index([unitId, status])
   @@map("reservations")
+}
+
+enum FeeStatus {
+  PENDIENTE
+  PAGADO
+  MOROSO
+}
+
+model FeeGeneration {
+  id           String   @id @default(uuid()) @db.Uuid
+  period       String   @db.Char(7)
+  amount       Decimal  @db.Decimal(10, 2)
+  dueDate      DateTime @map("due_date") @db.Date
+  concept      String   @db.VarChar(60)
+  createdCount Int      @map("created_count")
+  skippedCount Int      @map("skipped_count")
+  createdById  String   @map("created_by_id") @db.Uuid
+  createdBy    User     @relation(fields: [createdById], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  fees Fee[]
+
+  @@map("fee_generations")
+}
+
+model Fee {
+  id             String        @id @default(uuid()) @db.Uuid
+  unitId         String        @map("unit_id") @db.Uuid
+  unit           Unit          @relation(fields: [unitId], references: [id])
+  generationId   String        @map("generation_id") @db.Uuid
+  generation     FeeGeneration @relation(fields: [generationId], references: [id])
+  period         String        @db.Char(7)
+  concept        String        @db.VarChar(60)
+  amount         Decimal       @db.Decimal(10, 2)
+  dueDate        DateTime      @map("due_date") @db.Date
+  status         FeeStatus     @default(PENDIENTE)
+  paidAt         DateTime?     @map("paid_at")
+  overdueAt      DateTime?     @map("overdue_at")
+  reminderSentAt DateTime?     @map("reminder_sent_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  @@unique([unitId, period])
+  @@map("fees")
 }

@@ -47,6 +47,8 @@
       "@Incidents/*": ["./src/incidents/*/index.ts"],
       "@Reservations": ["./src/reservations/index.ts"],
       "@Reservations/*": ["./src/reservations/*/index.ts"],
+      "@Directory": ["./src/directory/index.ts"],
+      "@Directory/*": ["./src/directory/*/index.ts"],
       "@Health": ["./src/health/index.ts"],
       "@Health/*": ["./src/health/*/index.ts"],
       "@Prisma": ["./src/prisma/index.ts"],

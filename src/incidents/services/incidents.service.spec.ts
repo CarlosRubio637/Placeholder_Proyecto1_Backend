@@ -43,6 +43,8 @@ function setup() {
     })),
     findActiveAdminIds: vi.fn().mockResolvedValue(['admin-1', 'admin-2']),
     findPhoto: vi.fn(),
+    listByUnit: vi.fn(),
+    findDetail: vi.fn(),
   };
   const storage = {
     saveAll: vi.fn().mockImplementation(async (_id, photos) =>
@@ -208,12 +210,12 @@ describe('IncidentsService.getPhoto', () => {
     await expect(service.getPhoto(admin, 'p1')).resolves.toBeTruthy();
   });
 
-  it('un residente de otra unidad recibe 403', async () => {
+  it('un residente de otra unidad recibe 404, como si no existiera (H11)', async () => {
     const { service, repository } = setup();
     repository.findPhoto.mockResolvedValue(photo);
     const other = { ...resident, unitId: 'unit-2' } as User;
     await expect(service.getPhoto(other, 'p1')).rejects.toBeInstanceOf(
-      ForbiddenException,
+      NotFoundException,
     );
   });
 
@@ -228,6 +230,133 @@ describe('IncidentsService.getPhoto', () => {
     storage.open.mockResolvedValue(null);
     await expect(service.getPhoto(resident, 'p1')).rejects.toBeInstanceOf(
       NotFoundException,
+    );
+  });
+});
+
+describe('IncidentsService.listMine (H11)', () => {
+  it('filtra por la unidad de la sesión y devuelve la página pedida', async () => {
+    const { service, repository } = setup();
+    repository.listByUnit.mockResolvedValue({
+      data: [{ id: 'i1' }],
+      total: 11,
+    });
+
+    const result = await service.listMine(resident, {
+      status: 'PENDIENTE',
+      page: 2,
+      pageSize: 10,
+    });
+
+    expect(repository.listByUnit).toHaveBeenCalledWith({
+      unitId: 'unit-1',
+      status: 'PENDIENTE',
+      page: 2,
+      pageSize: 10,
+    });
+    expect(result).toEqual({
+      data: [{ id: 'i1' }],
+      total: 11,
+      page: 2,
+      pageSize: 10,
+    });
+  });
+
+  it('un usuario sin unidad recibe 403', async () => {
+    const { service } = setup();
+    const sinUnidad = { ...resident, unitId: null } as User;
+    await expect(
+      service.listMine(sinUnidad, { page: 1, pageSize: 10 }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
+describe('IncidentsService.getDetail (H11)', () => {
+  const detail = {
+    id: 'i1',
+    number: 'INC-2026-00001',
+    title: 'Fuga de agua',
+    description: 'Gotea agua del techo.',
+    location: 'TORRE_A',
+    locationDetail: null,
+    status: 'EN_PROCESO',
+    priority: 'ALTA',
+    resolvedAt: null,
+    createdAt: new Date('2026-11-06T10:00:00Z'),
+    updatedAt: new Date('2026-11-06T11:00:00Z'),
+    unitId: 'unit-1',
+    unit: { code: 'A-101' },
+    assignee: { name: 'Juan Pérez', specialty: 'Fontanería' },
+    photos: [{ id: 'p1' }],
+    events: [
+      {
+        id: 'e1',
+        type: 'CREACION',
+        fromStatus: null,
+        toStatus: 'PENDIENTE',
+        fromValue: null,
+        toValue: null,
+        note: 'Incidencia registrada',
+        createdAt: new Date('2026-11-06T10:00:00Z'),
+        author: { role: 'RESIDENTE', profile: { fullName: 'Ana López' } },
+      },
+      {
+        id: 'e2',
+        type: 'ESTADO',
+        fromStatus: 'PENDIENTE',
+        toStatus: 'EN_PROCESO',
+        fromValue: null,
+        toValue: null,
+        note: 'Se revisa la tubería.',
+        createdAt: new Date('2026-11-06T11:00:00Z'),
+        author: {
+          role: 'ADMINISTRADOR',
+          profile: { fullName: 'Carlos Admin' },
+        },
+      },
+    ],
+  };
+
+  it('arma el detalle con fotos, responsable e historial', async () => {
+    const { service, repository } = setup();
+    repository.findDetail.mockResolvedValue(detail);
+
+    const result = await service.getDetail(resident, 'i1');
+
+    expect(result).toMatchObject({
+      number: 'INC-2026-00001',
+      unit: { code: 'A-101' },
+      assignee: { name: 'Juan Pérez', specialty: 'Fontanería' },
+      photos: [{ id: 'p1', url: 'incidencias/fotos/p1' }],
+    });
+    expect(result.events.map((e) => [e.type, e.authorLabel])).toEqual([
+      ['CREACION', 'Ana López'],
+      // Los eventos de un administrador no exponen su cuenta.
+      ['ESTADO', 'Administración'],
+    ]);
+    expect(result).not.toHaveProperty('unitId');
+  });
+
+  it('el administrador ve cualquier incidencia', async () => {
+    const { service, repository } = setup();
+    repository.findDetail.mockResolvedValue(detail);
+    const admin = { id: 'a', role: 'ADMINISTRADOR', unitId: null } as User;
+    await expect(service.getDetail(admin, 'i1')).resolves.toMatchObject({
+      id: 'i1',
+    });
+  });
+
+  it('404 si no existe o es de otra unidad', async () => {
+    const { service, repository } = setup();
+    repository.findDetail.mockResolvedValue(null);
+    await expect(service.getDetail(resident, 'i1')).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+
+    repository.findDetail.mockResolvedValue(detail);
+    const other = { ...resident, unitId: 'unit-2' } as User;
+    await expect(service.getDetail(other, 'i1')).rejects.toThrow(
+      'La incidencia no existe.',
     );
   });
 });

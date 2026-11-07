@@ -38,6 +38,48 @@ export type PhotoWithIncidentUnit = Prisma.IncidentPhotoGetPayload<{
   include: { incident: { select: { unitId: true } } };
 }>;
 
+/** Columnas de la lista "Mis incidencias" (H11). */
+const LIST_SELECT = {
+  id: true,
+  number: true,
+  title: true,
+  location: true,
+  status: true,
+  priority: true,
+  createdAt: true,
+} satisfies Prisma.IncidentSelect;
+
+export type IncidentListItem = Prisma.IncidentGetPayload<{
+  select: typeof LIST_SELECT;
+}>;
+
+/** Detalle con fotos, responsable, unidad e historial (H11). */
+const DETAIL_INCLUDE = {
+  photos: { orderBy: { createdAt: 'asc' }, select: { id: true } },
+  unit: { select: { code: true } },
+  assignee: { select: { name: true, specialty: true } },
+  events: {
+    // Del más antiguo al más reciente; el id desempata eventos del mismo instante.
+    orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+    include: {
+      author: {
+        select: { role: true, profile: { select: { fullName: true } } },
+      },
+    },
+  },
+} satisfies Prisma.IncidentInclude;
+
+export type IncidentDetail = Prisma.IncidentGetPayload<{
+  include: typeof DETAIL_INCLUDE;
+}>;
+
+export interface ListByUnitParams {
+  unitId: string;
+  status?: IncidentStatus;
+  page: number;
+  pageSize: number;
+}
+
 /** Acceso a datos del módulo de incidencias. */
 @Injectable()
 export class IncidentRepository {
@@ -90,6 +132,34 @@ export class IncidentRepository {
       select: { id: true },
     });
     return admins.map((admin) => admin.id);
+  }
+
+  /** Incidencias de la unidad, de la más reciente a la más antigua (H11). */
+  async listByUnit({
+    unitId,
+    status,
+    page,
+    pageSize,
+  }: ListByUnitParams): Promise<{ data: IncidentListItem[]; total: number }> {
+    const where: Prisma.IncidentWhereInput = { unitId, status };
+    const [data, total] = await this.prisma.$transaction([
+      this.prisma.incident.findMany({
+        where,
+        select: LIST_SELECT,
+        orderBy: [{ createdAt: 'desc' }, { number: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.prisma.incident.count({ where }),
+    ]);
+    return { data, total };
+  }
+
+  findDetail(id: string): Promise<IncidentDetail | null> {
+    return this.prisma.incident.findUnique({
+      where: { id },
+      include: DETAIL_INCLUDE,
+    });
   }
 
   findPhoto(photoId: string): Promise<PhotoWithIncidentUnit | null> {

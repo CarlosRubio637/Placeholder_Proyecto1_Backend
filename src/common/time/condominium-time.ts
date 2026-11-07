@@ -51,3 +51,8 @@ export function formatDateEs(isoDate: string): string {
   const [year, month, day] = isoDate.split('-');
   return `${day}/${month}/${year}`;
 }
+
+/** "AAAA-MM-DD" más `days` días, "AAAA-MM-DD". */
+export function addDays(isoDate: string, days: number): string {
+  return fromDbDate(new Date(toDbDate(isoDate).getTime() + days * DAY_MS));
+}

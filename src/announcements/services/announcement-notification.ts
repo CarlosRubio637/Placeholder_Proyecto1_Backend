@@ -24,7 +24,13 @@ const TRUNCATION_MARK = '...';
 function fitTitle(title: string): string {
   const max = ANNOUNCEMENT_LIMITS.notificationTitleMax;
   if (title.length <= max) return title;
-  return title.slice(0, max - TRUNCATION_MARK.length) + TRUNCATION_MARK;
+  const room = max - TRUNCATION_MARK.length;
+  let kept = '';
+  for (const character of title) {
+    if (kept.length + character.length > room) break;
+    kept += character;
+  }
+  return kept + TRUNCATION_MARK;
 }
 
 export function buildAnnouncementNotification(

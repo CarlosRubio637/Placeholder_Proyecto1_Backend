@@ -9,7 +9,6 @@ import {
   IsISO8601,
   IsString,
   IsUUID,
-  Length,
   Matches,
   ValidateIf,
 } from 'class-validator';
@@ -18,6 +17,7 @@ import {
   ANNOUNCEMENT_LIMITS,
   ANNOUNCEMENT_MESSAGES,
 } from '../announcements.constants.js';
+import { CodePointLength } from './code-point-length.js';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -32,7 +32,7 @@ export class CreateAnnouncementDto {
   })
   @Transform(trim)
   @IsString({ message: ANNOUNCEMENT_MESSAGES.title })
-  @Length(ANNOUNCEMENT_LIMITS.titleMin, ANNOUNCEMENT_LIMITS.titleMax, {
+  @CodePointLength(ANNOUNCEMENT_LIMITS.titleMin, ANNOUNCEMENT_LIMITS.titleMax, {
     message: ANNOUNCEMENT_MESSAGES.title,
   })
   title!: string;
@@ -44,7 +44,7 @@ export class CreateAnnouncementDto {
   })
   @Transform(trim)
   @IsString({ message: ANNOUNCEMENT_MESSAGES.body })
-  @Length(ANNOUNCEMENT_LIMITS.bodyMin, ANNOUNCEMENT_LIMITS.bodyMax, {
+  @CodePointLength(ANNOUNCEMENT_LIMITS.bodyMin, ANNOUNCEMENT_LIMITS.bodyMax, {
     message: ANNOUNCEMENT_MESSAGES.body,
   })
   body!: string;
@@ -68,7 +68,7 @@ export class CreateAnnouncementDto {
   @IsArray({ message: ANNOUNCEMENT_MESSAGES.towerIds })
   @ArrayMinSize(1, { message: ANNOUNCEMENT_MESSAGES.towerIds })
   @ArrayMaxSize(ANNOUNCEMENT_LIMITS.maxTowers, {
-    message: ANNOUNCEMENT_MESSAGES.towerIds,
+    message: ANNOUNCEMENT_MESSAGES.maxTowers,
   })
   @ArrayUnique({ message: ANNOUNCEMENT_MESSAGES.towerIds })
   @IsUUID('all', { each: true, message: ANNOUNCEMENT_MESSAGES.towerIdFormat })

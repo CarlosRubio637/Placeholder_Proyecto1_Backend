@@ -19,6 +19,7 @@ export const ANNOUNCEMENT_MESSAGES = {
   towerIds: 'Elige al menos una torre o "Todo el condominio".',
   towerIdsWithAll: 'Con "Todo el condominio" no se envían torres.',
   towerIdFormat: 'Cada torre debe ser un uuid válido.',
+  maxTowers: 'Elige como máximo 3 torres.',
   expiresOnFormat: 'Ingresa una fecha de fin de vigencia válida (AAAA-MM-DD).',
 } as const;
 

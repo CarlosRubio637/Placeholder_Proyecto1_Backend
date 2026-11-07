@@ -27,7 +27,7 @@ export class AudienceQueryDto {
   @IsOptional()
   @IsArray({ message: ANNOUNCEMENT_MESSAGES.towerIdFormat })
   @ArrayMaxSize(ANNOUNCEMENT_LIMITS.maxTowers, {
-    message: ANNOUNCEMENT_MESSAGES.towerIds,
+    message: ANNOUNCEMENT_MESSAGES.maxTowers,
   })
   @IsUUID('all', { each: true, message: ANNOUNCEMENT_MESSAGES.towerIdFormat })
   towerIds?: string[];

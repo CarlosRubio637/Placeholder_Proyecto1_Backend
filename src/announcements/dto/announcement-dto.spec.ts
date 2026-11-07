@@ -91,7 +91,6 @@ describe('DTO del comunicado', () => {
   it.each([
     ['sin torres', []],
     ['sin la lista', undefined],
-    ['con 4 torres', [TOWER_A, TOWER_B, TOWER_C, TOWER_D]],
     ['con torres repetidas', [TOWER_A, TOWER_A]],
   ])('rechaza TORRES %s', async (_case, towerIds) => {
     const { fields, messages } = await check(CreateAnnouncementDto, {
@@ -100,6 +99,29 @@ describe('DTO del comunicado', () => {
     });
     expect(fields).toEqual(['towerIds']);
     expect(messages).toContain(ANNOUNCEMENT_MESSAGES.towerIds);
+  });
+
+  it('rechaza TORRES con 4 torres con el máximo de torres', async () => {
+    const { fields, messages } = await check(CreateAnnouncementDto, {
+      ...valid,
+      towerIds: [TOWER_A, TOWER_B, TOWER_C, TOWER_D],
+    });
+    expect(fields).toEqual(['towerIds']);
+    expect(messages).toEqual([ANNOUNCEMENT_MESSAGES.maxTowers]);
+  });
+
+  it('cuenta los emojis como los cuenta Postgres', async () => {
+    const heart = '❤️';
+    const title = await check(CreateAnnouncementDto, {
+      ...valid,
+      title: heart.repeat(60),
+    });
+    const body = await check(CreateAnnouncementDto, {
+      ...valid,
+      body: heart.repeat(1001),
+    });
+    expect(title.fields).toEqual(['title']);
+    expect(body.fields).toEqual(['body']);
   });
 
   it('rechaza una torre que no es uuid', async () => {
@@ -146,5 +168,15 @@ describe('consulta de la audiencia', () => {
   it('rechaza una torre que no es uuid', async () => {
     const { fields } = await check(AudienceQueryDto, { towerIds: 'x' });
     expect(fields).toEqual(['towerIds']);
+  });
+});
+
+describe('máximo de torres en la audiencia', () => {
+  it('rechaza 4 torres con el mensaje del máximo', async () => {
+    const { fields, messages } = await check(AudienceQueryDto, {
+      towerIds: [TOWER_A, TOWER_B, TOWER_C, TOWER_D].join(','),
+    });
+    expect(fields).toEqual(['towerIds']);
+    expect(messages).toEqual([ANNOUNCEMENT_MESSAGES.maxTowers]);
   });
 });

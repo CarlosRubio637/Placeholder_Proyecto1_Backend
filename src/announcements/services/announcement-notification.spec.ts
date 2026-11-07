@@ -40,3 +40,15 @@ describe('aviso de un comunicado', () => {
     expect(title.endsWith('...')).toBe(true);
   });
 });
+
+describe('recorte del título del aviso', () => {
+  it('no parte un emoji al recortar', () => {
+    const prefix = 'Nuevo comunicado: ';
+    const title = 'x'.repeat(96 - prefix.length) + '\u{1F600}' + 'y'.repeat(20);
+    const { title: cut } = buildAnnouncementNotification({
+      ...announcement,
+      title,
+    });
+    expect(cut).toBe(prefix + 'x'.repeat(96 - prefix.length) + '...');
+  });
+});

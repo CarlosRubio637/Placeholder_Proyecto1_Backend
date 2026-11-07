@@ -57,6 +57,8 @@ model User {
   reportedIncidents Incident[]      @relation("IncidentReporter")
   /// Eventos del historial de incidencias que registró (H10-H13).
   incidentEvents    IncidentEvent[]
+  receivedPackages  Package[] @relation("PackageReceiver")
+  deliveredPackages Package[] @relation("PackageDeliverer")
 
   @@index([unitId])
   @@map("users")
@@ -130,6 +132,7 @@ model Unit {
   /// Cuentas de residentes de la unidad (H38), máximo 4.
   residents User[]
   incidents Incident[]
+  packages  Package[]
 
   @@unique([towerId, number])
   @@map("units")
@@ -323,4 +326,70 @@ model IncidentCounter {
   last Int
 
   @@map("incident_counters")
+}
+
+// ---------------------------------------------------------------------------
+// Módulo de paquetería (H19; H20 y H21 usan el mismo modelo)
+// ---------------------------------------------------------------------------
+
+enum PackageStatus {
+  PENDIENTE_ENTREGA
+  ENTREGADO
+}
+
+/// Documento de quien recoge un paquete (H21).
+enum DocumentType {
+  DUI
+  PASAPORTE
+}
+
+/// Paquete que llega a portería para una unidad (H19). No se borran.
+model Package {
+  id   String @id @default(uuid()) @db.Uuid
+  /// PQ-AAAAMMDD-NNNN (ver PackageCounter).
+  code String @unique @db.VarChar(20)
+
+  unitId String @map("unit_id") @db.Uuid
+  unit   Unit   @relation(fields: [unitId], references: [id])
+
+  /// 2 a 40 caracteres.
+  courier        String        @db.VarChar(40)
+  /// 4 a 40 caracteres: letras, números y guiones.
+  trackingNumber String?       @map("tracking_number") @db.VarChar(40)
+  /// Máximo 200 caracteres.
+  notes          String?       @db.VarChar(200)
+  status         PackageStatus @default(PENDIENTE_ENTREGA)
+  receivedAt     DateTime      @default(now()) @map("received_at")
+
+  /// Agente de seguridad que lo registró.
+  receivedById String @map("received_by_id") @db.Uuid
+  receivedBy   User   @relation("PackageReceiver", fields: [receivedById], references: [id])
+
+  // Entrega (H21).
+  deliveredAt         DateTime?     @map("delivered_at")
+  deliveredById       String?       @map("delivered_by_id") @db.Uuid
+  deliveredBy         User?         @relation("PackageDeliverer", fields: [deliveredById], references: [id])
+  /// 3 a 80 caracteres.
+  pickedUpByName      String?       @map("picked_up_by_name") @db.VarChar(80)
+  pickedUpByDocType   DocumentType? @map("picked_up_by_doc_type")
+  /// Según el tipo de documento.
+  pickedUpByDocNumber String?       @map("picked_up_by_doc_number") @db.VarChar(20)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, receivedAt])
+  @@index([unitId, status])
+  @@map("packages")
+}
+
+/// Último consecutivo usado por día para el código PQ-AAAAMMDD-NNNN (H19).
+/// Mismo patrón que IncidentCounter: se incrementa con INSERT ... ON CONFLICT
+/// dentro de la transacción que crea el paquete.
+model PackageCounter {
+  /// AAAAMMDD
+  day  String @id @db.Char(8)
+  last Int
+
+  @@map("package_counters")
 }

@@ -9,6 +9,9 @@ import { UsersModule } from '@Users';
 import { NotificationsModule } from '@Notifications';
 import { IncidentsModule } from '@Incidents';
 import { validateEnv } from '@Config';
+import { UnitsModule } from './units/units.module.js';
+import { TowersModule } from './towers/towers.module.js';
+import { PackagesModule } from './packages/packages.module.js';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { validateEnv } from '@Config';
     NotificationsModule,
     IncidentsModule,
     AuthModule,
+    UnitsModule,
+    TowersModule,
+    PackagesModule,
   ],
   providers: [
     {

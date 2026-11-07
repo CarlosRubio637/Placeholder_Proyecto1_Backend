@@ -5,6 +5,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   StreamableFile,
   UploadedFiles,
   UseInterceptors,
@@ -24,7 +25,13 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser, Roles } from '@Auth/decorators';
 import { IncidentLocation, type User } from '@PrismaClient';
-import { CreateIncidentDto, IncidentCreatedDto } from '../dto/index.js';
+import {
+  CreateIncidentDto,
+  IncidentCreatedDto,
+  IncidentDetailDto,
+  IncidentListDto,
+  ListMyIncidentsQuery,
+} from '../dto/index.js';
 import { IncidentPhotosInterceptor } from '../interceptors/index.js';
 import { IncidentsService, type UploadedPhoto } from '../services/index.js';
 
@@ -76,6 +83,25 @@ export class IncidentsController {
     return this.incidentsService.create(user, dto, files ?? []);
   }
 
+  /**
+   * H11: incidencias de la unidad del residente, de la más reciente a la más
+   * antigua. Va antes de GET :id para que "mias" no se tome como un id.
+   */
+  @Get('mias')
+  @Roles('RESIDENTE')
+  @ApiOperation({ summary: 'Incidencias de la unidad del residente (H11)' })
+  @ApiOkResponse({ type: IncidentListDto })
+  @ApiBadRequestResponse({ description: 'Filtro o paginación inválidos.' })
+  @ApiForbiddenResponse({
+    description: 'Solo un residente tiene "mis incidencias".',
+  })
+  listMine(
+    @CurrentUser() user: User,
+    @Query() query: ListMyIncidentsQuery,
+  ): Promise<IncidentListDto> {
+    return this.incidentsService.listMine(user, query);
+  }
+
   /** Archivo de una fotografía (lo usan H10 y el detalle de H11). */
   @Get('fotos/:fotoId')
   @Roles('RESIDENTE', 'ADMINISTRADOR')
@@ -97,5 +123,19 @@ export class IncidentsController {
       photoId,
     );
     return new StreamableFile(stream, { type: mimeType, length: size });
+  }
+
+  /** H11: detalle con fotos, responsable e historial (el administrador lo usa desde H12). */
+  @Get(':id')
+  @Roles('RESIDENTE', 'ADMINISTRADOR')
+  @ApiOperation({ summary: 'Detalle de una incidencia con su historial (H11)' })
+  @ApiOkResponse({ type: IncidentDetailDto })
+  @ApiNotFoundResponse({ description: 'No existe o es de otra unidad.' })
+  @ApiForbiddenResponse({ description: 'Personal de seguridad.' })
+  detail(
+    @CurrentUser() user: User,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<IncidentDetailDto> {
+    return this.incidentsService.getDetail(user, id);
   }
 }

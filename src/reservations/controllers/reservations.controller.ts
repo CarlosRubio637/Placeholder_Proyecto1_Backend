@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -14,6 +14,8 @@ import {
 import { CurrentUser, Roles } from '@Auth/decorators';
 import type { User } from '@PrismaClient';
 import {
+  AvailabilityDto,
+  AvailabilityQueryDto,
   CreateReservationDto,
   PublicAreaListDto,
   ReservationDto,
@@ -35,6 +37,19 @@ export class AreasController {
   @ApiOkResponse({ type: PublicAreaListDto })
   list(): Promise<PublicAreaListDto> {
     return this.reservations.listAreas();
+  }
+
+  @Get(':areaId/disponibilidad')
+  @ApiOperation({ summary: 'Franjas de un área en una fecha con su estado (H6)' })
+  @ApiOkResponse({ type: AvailabilityDto })
+  @ApiBadRequestResponse({ description: 'Fecha inválida o fuera del rango de hoy a 30 días.' })
+  @ApiNotFoundResponse({ description: 'El área no existe o está deshabilitada.' })
+  availability(
+    @CurrentUser() user: User,
+    @Param('areaId', new ParseUUIDPipe()) areaId: string,
+    @Query() query: AvailabilityQueryDto,
+  ): Promise<AvailabilityDto> {
+    return this.reservations.availability(user, areaId, query.date);
   }
 }
 

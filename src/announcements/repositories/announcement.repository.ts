@@ -7,7 +7,10 @@ import {
   type AudienceType,
   type Prisma,
 } from '@PrismaClient';
-import { TowerNotFoundError } from '../errors/index.js';
+import {
+  AnnouncementNotFoundError,
+  TowerNotFoundError,
+} from '../errors/index.js';
 
 type Tx = Prisma.TransactionClient;
 
@@ -32,6 +35,14 @@ export interface ResidentAnnouncementRow {
     Announcement,
     'id' | 'title' | 'category' | 'publishedAt' | 'expiresOn'
   >;
+}
+
+export interface ResidentAnnouncementFilter {
+  archived: boolean;
+  category?: AnnouncementCategory;
+  today: Date;
+  skip: number;
+  take: number;
 }
 
 export interface ResidentAnnouncementDetail {
@@ -102,6 +113,74 @@ export class AnnouncementRepository {
         recipientCount: count,
       };
     });
+  }
+
+  async listForResident(
+    userId: string,
+    filter: ResidentAnnouncementFilter,
+  ): Promise<{ rows: ResidentAnnouncementRow[]; total: number }> {
+    const where: Prisma.AnnouncementRecipientWhereInput = {
+      userId,
+      announcement: {
+        expiresOn: filter.archived
+          ? { lt: filter.today }
+          : { gte: filter.today },
+        category: filter.category,
+      },
+    };
+    const [rows, total] = await this.prisma.$transaction([
+      this.prisma.announcementRecipient.findMany({
+        where,
+        select: {
+          readAt: true,
+          announcement: {
+            select: {
+              id: true,
+              title: true,
+              category: true,
+              publishedAt: true,
+              expiresOn: true,
+            },
+          },
+        },
+        orderBy: [
+          { announcement: { publishedAt: 'desc' } },
+          { announcement: { id: 'asc' } },
+        ],
+        skip: filter.skip,
+        take: filter.take,
+      }),
+      this.prisma.announcementRecipient.count({ where }),
+    ]);
+    return { rows, total };
+  }
+
+  async markRead(
+    userId: string,
+    announcementId: string,
+  ): Promise<ResidentAnnouncementDetail> {
+    await this.prisma.announcementRecipient.updateMany({
+      where: { announcementId, userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    const recipient = await this.prisma.announcementRecipient.findUnique({
+      where: { announcementId_userId: { announcementId, userId } },
+      select: {
+        readAt: true,
+        announcement: {
+          select: {
+            id: true,
+            title: true,
+            body: true,
+            category: true,
+            publishedAt: true,
+            expiresOn: true,
+          },
+        },
+      },
+    });
+    if (!recipient?.readAt) throw new AnnouncementNotFoundError(announcementId);
+    return { readAt: recipient.readAt, announcement: recipient.announcement };
   }
 
   private async assertTowersExist(

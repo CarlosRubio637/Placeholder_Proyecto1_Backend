@@ -64,6 +64,18 @@ describe('consulta de comunicados del residente', () => {
     ]);
   });
 
+  it.each(['100001', '1e20'])('rechaza la página %s', async (page) => {
+    const { fields, messages } = await check({ page });
+    expect(fields).toEqual(['page']);
+    expect(messages).toEqual(['La página no puede ser mayor que 100,000.']);
+  });
+
+  it('acepta la página 100000', async () => {
+    const { dto, fields } = await check({ page: '100000' });
+    expect(fields).toEqual([]);
+    expect(dto.page).toBe(100000);
+  });
+
   it('rechaza 51 por página', async () => {
     const { fields, messages } = await check({ pageSize: '51' });
     expect(fields).toEqual(['pageSize']);

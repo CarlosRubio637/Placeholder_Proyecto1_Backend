@@ -5,6 +5,7 @@ import { AnnouncementCategory } from '@PrismaClient';
 import {
   ANNOUNCEMENT_MESSAGES,
   RESIDENT_ANNOUNCEMENT_MESSAGES,
+  RESIDENT_MAX_PAGE,
   RESIDENT_MAX_PAGE_SIZE,
   RESIDENT_PAGE_SIZE,
   RESIDENT_TABS,
@@ -21,10 +22,13 @@ export class ResidentAnnouncementsQueryDto {
   @IsEnum(AnnouncementCategory, { message: ANNOUNCEMENT_MESSAGES.category })
   category?: AnnouncementCategory;
 
-  @ApiPropertyOptional({ default: 1, minimum: 1 })
+  @ApiPropertyOptional({ default: 1, minimum: 1, maximum: RESIDENT_MAX_PAGE })
   @Type(() => Number)
   @IsInt({ message: RESIDENT_ANNOUNCEMENT_MESSAGES.page })
   @Min(1, { message: RESIDENT_ANNOUNCEMENT_MESSAGES.page })
+  @Max(RESIDENT_MAX_PAGE, {
+    message: RESIDENT_ANNOUNCEMENT_MESSAGES.pageTooHigh,
+  })
   page: number = 1;
 
   @ApiPropertyOptional({

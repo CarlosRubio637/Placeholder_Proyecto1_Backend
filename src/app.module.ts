@@ -14,6 +14,7 @@ import { UnitsModule } from './units/units.module.js';
 import { TowersModule } from './towers/towers.module.js';
 import { PackagesModule } from './packages/packages.module.js';
 import { AssembliesModule } from './admin/assemblies/assemblies.module.js';
+import { ReportsModule } from './admin/reports/reports.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
@@ -35,6 +36,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     TowersModule,
     PackagesModule,
     AssembliesModule,
+    ReportsModule,
     ScheduleModule.forRoot(),
   ],
   providers: [

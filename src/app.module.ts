@@ -16,6 +16,7 @@ import { validateEnv } from '@Config';
 import { UnitsModule } from './units/units.module.js';
 import { TowersModule } from './towers/towers.module.js';
 import { PackagesModule } from './packages/packages.module.js';
+import { VisitsModule } from './visits/visits.module.js';
 import { AssembliesModule } from './admin/assemblies/assemblies.module.js';
 import { ReportsModule } from './admin/reports/reports.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -41,12 +42,12 @@ import { VotingModule } from './voting/voting.module.js';
     UnitsModule,
     TowersModule,
     PackagesModule,
+    VisitsModule,
     AssembliesModule,
     ReportsModule,
     VotingModule,
     DirectoryModule,
     ScheduleModule.forRoot(),
-    
   ],
   providers: [
     {

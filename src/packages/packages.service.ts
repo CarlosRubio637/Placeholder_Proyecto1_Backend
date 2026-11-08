@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -10,15 +11,21 @@ import {
   SourceModule,
 } from '@Notifications';
 import { PrismaService } from '@Prisma/services';
-import { Role, type User } from '@PrismaClient';
+import { PackageStatus, Role, type User } from '@PrismaClient';
 import {
   CreatePackageDto,
   DEFAULT_PAGE_SIZE,
   ListPackagesQueryDto,
+  MY_PACKAGES_PAGE_SIZE,
+  MyPackageDto,
+  MyPackagesListDto,
+  MyPackagesQueryDto,
   PackageListDto,
   PackageResponseDto,
+  type MyPackageRow,
   type PackageRow,
 } from './dto/index.js';
+import { daysWaiting, docLast4 } from './days-waiting.js';
 import {
   dayKey,
   formatDate,
@@ -35,6 +42,19 @@ const PACKAGE_SELECT = {
   status: true,
   receivedAt: true,
   unit: { select: { id: true, code: true } },
+} as const;
+
+const MY_PACKAGE_SELECT = {
+  id: true,
+  code: true,
+  courier: true,
+  trackingNumber: true,
+  notes: true,
+  status: true,
+  receivedAt: true,
+  deliveredAt: true,
+  pickedUpByName: true,
+  pickedUpByDocNumber: true,
 } as const;
 
 @Injectable()
@@ -77,8 +97,6 @@ export class PackagesService {
     const day = dayKey(now);
 
     const created = await this.prisma.$transaction(async (tx) => {
-      // INSERT ... ON CONFLICT en una sola sentencia: dos registros
-      // simultáneos nunca reciben el mismo consecutivo.
       const counter = await tx.packageCounter.upsert({
         where: { day },
         create: { day, last: 1 },
@@ -106,7 +124,7 @@ export class PackagesService {
     return PackageResponseDto.fromEntity(created);
   }
 
-  /** Lista paquetes (H19): más reciente primero, con filtros opcionales. */
+  /** Lista paquetes para seguridad (H19): más reciente primero, filtros opcionales. */
   async list(query: ListPackagesQueryDto): Promise<PackageListDto> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? DEFAULT_PAGE_SIZE;
@@ -152,6 +170,68 @@ export class PackagesService {
       total,
       page,
       pageSize,
+    };
+  }
+
+  /**
+   * Mis paquetes (H20). El residente ve los paquetes de SU unidad; la unidad
+   * se toma del token, nunca de la consulta. Devuelve además pendingCount
+   * (pendientes de la unidad, sin importar la pestaña) y oculta el documento
+   * completo de quien recogió el paquete.
+   */
+  async listMine(
+    resident: User,
+    query: MyPackagesQueryDto,
+  ): Promise<MyPackagesListDto> {
+    // Un residente debería tener unidad (CHECK de H38); se comprueba igual.
+    if (!resident.unitId) {
+      throw new ForbiddenException();
+    }
+
+    const page = query.page ?? 1;
+    const pageSize = query.pageSize ?? MY_PACKAGES_PAGE_SIZE;
+    const { status } = query;
+    const unitId = resident.unitId;
+
+    const now = new Date();
+
+    const [pendingCount, total, rows] = await Promise.all([
+      this.prisma.package.count({
+        where: { unitId, status: PackageStatus.PENDIENTE_ENTREGA },
+      }),
+      this.prisma.package.count({ where: { unitId, status } }),
+      this.prisma.package.findMany({
+        where: { unitId, status },
+        orderBy: [{ receivedAt: 'desc' }, { code: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        select: MY_PACKAGE_SELECT,
+      }),
+    ]);
+
+    return {
+      pendingCount,
+      data: rows.map((row) => this.toMyPackageDto(row, now)),
+      total,
+      page,
+      pageSize,
+    };
+  }
+
+  private toMyPackageDto(row: MyPackageRow, now: Date): MyPackageDto {
+    return {
+      id: row.id,
+      code: row.code,
+      courier: row.courier,
+      trackingNumber: row.trackingNumber,
+      notes: row.notes,
+      receivedAt: row.receivedAt,
+      // Solo tiene sentido mientras está pendiente; para los entregados se
+      // calcula contra la recepción para no mostrar valores engañosos.
+      daysWaiting: daysWaiting(row.receivedAt, now),
+      deliveredAt: row.deliveredAt,
+      pickedUpByName: row.pickedUpByName,
+      pickedUpByDocLast4: docLast4(row.pickedUpByDocNumber),
     };
   }
 

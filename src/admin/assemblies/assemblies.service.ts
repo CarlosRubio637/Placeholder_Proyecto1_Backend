@@ -1,9 +1,9 @@
 import {
-  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { badRequest } from '@Common/validation';
 import { PrismaService } from '@Prisma/services';
 import type { AssemblyStatus } from '@PrismaClient';
 import { CreateAssemblyDto } from './dto/create-assembly.dto.js';
@@ -129,7 +129,8 @@ export class AssembliesService {
       select: { status: true },
     });
     if (!current) throw new NotFoundException(MSG_NOT_FOUND);
-    if (current.status !== 'PROGRAMADA') throw new ConflictException(MSG_STARTED);
+    if (current.status !== 'PROGRAMADA')
+      throw new ConflictException(MSG_STARTED);
 
     this.assertValidRules(dto);
 
@@ -220,14 +221,12 @@ export class AssembliesService {
     });
   }
 
-  /** 400 con el campo que falló, como pide el PDF. */
+  /**
+   * 400 con el campo que falló, como pide el PDF. Usa el mismo formato que el
+   * ValidationPipe global (`message` como lista) para que toda la API responda igual.
+   */
   private invalid(field: string, message: string): never {
-    throw new BadRequestException({
-      statusCode: 400,
-      error: 'Bad Request',
-      field,
-      message,
-    });
+    throw badRequest(field, message);
   }
 
   /** Convierte el DTO en la creación anidada de temas y opciones. */

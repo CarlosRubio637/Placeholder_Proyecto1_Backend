@@ -26,6 +26,22 @@ export type PublishedAnnouncement = Announcement & {
   recipientCount: number;
 };
 
+export interface ResidentAnnouncementRow {
+  readAt: Date | null;
+  announcement: Pick<
+    Announcement,
+    'id' | 'title' | 'category' | 'publishedAt' | 'expiresOn'
+  >;
+}
+
+export interface ResidentAnnouncementDetail {
+  readAt: Date;
+  announcement: Pick<
+    Announcement,
+    'id' | 'title' | 'body' | 'category' | 'publishedAt' | 'expiresOn'
+  >;
+}
+
 function recipientFilter(towerIds: string[]): Prisma.UserWhereInput {
   const base: Prisma.UserWhereInput = {
     role: Role.RESIDENTE,

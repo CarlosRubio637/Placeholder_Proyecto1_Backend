@@ -15,6 +15,7 @@ import {
 } from '@Notifications';
 import type { CommonArea, Reservation, User } from '@PrismaClient';
 import {
+  AvailabilityDto,
   PublicAreaDto,
   PublicAreaListDto,
   RESERVATION_MESSAGES,
@@ -29,7 +30,7 @@ import {
   UnitReservationLimitError,
 } from '../errors/index.js';
 import { ReservationRepository, type Clock } from '../repositories/index.js';
-import { findSlot, MAX_DAYS_AHEAD } from '../utils/index.js';
+import { buildAvailability, findSlot, MAX_DAYS_AHEAD } from '../utils/index.js';
 
 /**
  * Reservas de áreas comunes de los residentes (H7) y catálogo de áreas
@@ -47,6 +48,41 @@ export class ReservationsService {
   async listAreas(): Promise<PublicAreaListDto> {
     const areas = await this.repository.listActiveAreas();
     return { data: areas.map((area) => PublicAreaDto.fromEntity(area)) };
+  }
+
+  /**
+   * Franjas de un área en una fecha, entre hoy y 30 días (H6). Solo marca como
+   * propias las reservas de la unidad de quien consulta.
+   */
+  async availability(
+    user: User,
+    areaId: string,
+    date: string,
+    now = new Date(),
+  ): Promise<AvailabilityDto> {
+    const today = todayIso(now);
+    const lastDay = addDays(today, MAX_DAYS_AHEAD);
+    if (date < today || date > lastDay) {
+      throw badRequest('date', RESERVATION_MESSAGES.tooFar(formatDateEs(lastDay)));
+    }
+
+    const area = await this.repository.findActiveArea(areaId);
+    if (!area) {
+      throw new NotFoundException('El área no existe.');
+    }
+
+    const { blocked, reservations } = await this.repository.findDayOccupancy(area.id, date);
+    return {
+      areaId: area.id,
+      date,
+      slots: buildAvailability({
+        schedule: area,
+        blocked,
+        currentTime: date === today ? currentTime(now) : null,
+        reservations,
+        unitId: user.unitId,
+      }),
+    };
   }
 
   /**

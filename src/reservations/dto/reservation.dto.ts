@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsInt, IsISO8601, IsUUID, Matches } from 'class-validator';
 import { fromDbDate } from '@Common/time';
 import { ReservationStatus, type CommonArea, type Reservation } from '@PrismaClient';
+import type { SlotStatus } from '../utils/index.js';
 
 /** Mensajes de H7. */
 export const RESERVATION_MESSAGES = {
@@ -104,4 +105,33 @@ export class PublicAreaDto {
 
 export class PublicAreaListDto {
   @ApiProperty({ type: [PublicAreaDto] }) data!: PublicAreaDto[];
+}
+
+/** Consulta de GET /areas/:areaId/disponibilidad (H6). */
+export class AvailabilityQueryDto {
+  @ApiProperty({ example: '2026-11-10', description: 'AAAA-MM-DD, de hoy a 30 días.' })
+  @Matches(DATE_ONLY, { message: RESERVATION_MESSAGES.date })
+  @IsISO8601({ strict: true }, { message: RESERVATION_MESSAGES.date })
+  date!: string;
+}
+
+class AvailabilitySlotDto {
+  @ApiProperty({ example: '10:00' }) startTime!: string;
+  @ApiProperty({ example: '11:00' }) endTime!: string;
+  @ApiProperty({ enum: ['DISPONIBLE', 'RESERVADO', 'MANTENIMIENTO', 'PASADO'] })
+  status!: SlotStatus;
+  @ApiProperty({
+    type: String,
+    format: 'uuid',
+    nullable: true,
+    description: 'Solo si la reserva es de la unidad que consulta.',
+  })
+  ownReservationId!: string | null;
+}
+
+/** Franjas de un área en una fecha (H6). */
+export class AvailabilityDto {
+  @ApiProperty({ format: 'uuid' }) areaId!: string;
+  @ApiProperty({ example: '2026-11-10' }) date!: string;
+  @ApiProperty({ type: [AvailabilitySlotDto] }) slots!: AvailabilitySlotDto[];
 }

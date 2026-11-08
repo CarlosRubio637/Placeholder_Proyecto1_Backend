@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@Prisma/services';
 import { toDbDate } from '@Common/time';
-import { Prisma, type CommonArea, type Reservation } from '@PrismaClient';
+import { Prisma, ReservationStatus, type CommonArea, type Reservation } from '@PrismaClient';
 import {
   AreaBlockedError,
   AreaDisabledError,
@@ -62,6 +62,30 @@ export class ReservationRepository {
       where: { isActive: true },
       orderBy: { nameKey: 'asc' },
     });
+  }
+
+  /** Área habilitada, o null si no existe o está deshabilitada (H6). */
+  findActiveArea(id: string): Promise<CommonArea | null> {
+    return this.prisma.commonArea.findFirst({ where: { id, isActive: true } });
+  }
+
+  /** Bloqueo y reservas confirmadas de un área en una fecha (H6). */
+  async findDayOccupancy(
+    areaId: string,
+    isoDate: string,
+  ): Promise<{ blocked: boolean; reservations: Pick<Reservation, 'id' | 'startTime' | 'unitId'>[] }> {
+    const date = toDbDate(isoDate);
+    const [block, reservations] = await Promise.all([
+      this.prisma.areaBlock.findFirst({
+        where: { areaId, startDate: { lte: date }, endDate: { gte: date } },
+        select: { id: true },
+      }),
+      this.prisma.reservation.findMany({
+        where: { areaId, date, status: ReservationStatus.CONFIRMADA },
+        select: { id: true, startTime: true, unitId: true },
+      }),
+    ]);
+    return { blocked: block !== null, reservations };
   }
 
   /**

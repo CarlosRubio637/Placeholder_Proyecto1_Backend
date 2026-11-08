@@ -72,14 +72,22 @@ function setup() {
   return { service, prisma, tx };
 }
 
-/** Respuesta 400 con { field, message }. */
+/**
+ * Respuesta 400 con { field, message }. `message` es una lista, igual que la
+ * del ValidationPipe global; se devuelve su único mensaje.
+ */
 async function badRequestOf(promise: Promise<unknown>) {
   const error = await promise.catch((e: unknown) => e);
   expect(error).toBeInstanceOf(BadRequestException);
-  return (error as BadRequestException).getResponse() as {
+  const body = (error as BadRequestException).getResponse() as {
+    statusCode: number;
+    error: string;
     field: string;
-    message: string;
+    message: string[];
   };
+  expect(body).toMatchObject({ statusCode: 400, error: 'Bad Request' });
+  expect(body.message).toHaveLength(1);
+  return { field: body.field, message: body.message[0] };
 }
 
 describe('AssembliesService.create (H22)', () => {

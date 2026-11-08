@@ -13,16 +13,9 @@ const dayFormatter = new Intl.DateTimeFormat('en-CA', {
   day: '2-digit',
 });
 
-// Devuelve AAAAMMDD del día de El Salvador para un Date UTC.
-function svDayNumber(date: Date): number {
-  const [year, month, day] = dayFormatter.format(date).split('-');
-  return Number(`${year}${month}${day}`);
-}
-
 export function daysWaiting(receivedAt: Date, now: Date = new Date()): number {
-  // Diferencia de días calendario. svDayNumber da 20261107, 20261108...
-  // La resta no es la cantidad de días, así que se pasa por fechas UTC a
-  // medianoche del día local.
+  // Diferencia de días calendario: se pasa cada fecha a la medianoche UTC de
+  // su día local en El Salvador y se restan.
   const [ry, rm, rd] = dayFormatter.format(receivedAt).split('-').map(Number);
   const [ny, nm, nd] = dayFormatter.format(now).split('-').map(Number);
   const received = Date.UTC(ry, rm - 1, rd);

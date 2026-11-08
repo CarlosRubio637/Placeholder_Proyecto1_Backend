@@ -67,7 +67,9 @@ export class TokenService {
    * Incluye detección de reúso: si llega un token que ya fue canjeado, se
    * asume que fue robado y se revoca la sesión completa del usuario.
    */
-  async rotate(refreshToken: string): Promise<{ user: User; tokens: TokenPair }> {
+  async rotate(
+    refreshToken: string,
+  ): Promise<{ user: User; tokens: TokenPair }> {
     const stored = await this.refreshTokenRepository.findByTokenHashWithUser(
       this.hashToken(refreshToken),
     );
@@ -77,10 +79,7 @@ export class TokenService {
     }
 
     if (stored.revokedAt !== null) {
-      await this.refreshTokenRepository.revokeAllForUser(stored.userId);
-      throw new UnauthorizedException(
-        'Refresh token ya utilizado. Se cerraron todas las sesiones por seguridad.',
-      );
+      throw await this.handleReuse(stored.userId);
     }
 
     if (stored.expiresAt.getTime() <= Date.now()) {
@@ -91,7 +90,12 @@ export class TokenService {
       throw new UnauthorizedException('La cuenta está inactiva.');
     }
 
-    await this.refreshTokenRepository.revokeById(stored.id);
+    // Chequeo definitivo: si otra petición canjeó el mismo token después de la
+    // lectura de arriba, count es 0 y se trata como reúso.
+    const claimed = await this.refreshTokenRepository.revokeById(stored.id);
+    if (claimed === 0) {
+      throw await this.handleReuse(stored.userId);
+    }
 
     return {
       user: stored.user,
@@ -115,6 +119,14 @@ export class TokenService {
   /** Revoca todas las sesiones activas de un usuario. */
   async revokeAllForUser(userId: string): Promise<void> {
     await this.refreshTokenRepository.revokeAllForUser(userId);
+  }
+
+  /** Reúso de un token ya canjeado: se asume robo y se cierra todo. */
+  private async handleReuse(userId: string): Promise<UnauthorizedException> {
+    await this.refreshTokenRepository.revokeAllForUser(userId);
+    return new UnauthorizedException(
+      'Refresh token ya utilizado. Se cerraron todas las sesiones por seguridad.',
+    );
   }
 
   private hashToken(token: string): string {

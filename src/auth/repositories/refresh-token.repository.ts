@@ -35,11 +35,19 @@ export class RefreshTokenRepository {
     });
   }
 
-  revokeById(id: string): Promise<RefreshToken> {
-    return this.prisma.refreshToken.update({
-      where: { id },
-      data: { revokedAt: new Date() },
-    });
+  /**
+   * Revoca un token solo si sigue vigente. Devuelve cuántas filas cambiaron.
+   *
+   * El filtro por `revokedAt: null` hace atómico el canje: si llegan dos
+   * peticiones con el mismo token, solo una obtiene 1.
+   */
+  revokeById(id: string): Promise<number> {
+    return this.prisma.refreshToken
+      .updateMany({
+        where: { id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      })
+      .then((result) => result.count);
   }
 
   /**

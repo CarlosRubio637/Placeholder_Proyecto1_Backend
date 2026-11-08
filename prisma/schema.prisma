@@ -74,6 +74,8 @@ model User {
   feeGenerations        FeeGeneration[]
   announcementsCreated  Announcement[]
   announcementReceipts  AnnouncementRecipient[]
+  /// Participaciones de voto registradas por el residente (H23).
+  voteParticipations    VoteParticipation[]
   directoryPreference   DirectoryPreference?
 
   @@index([unitId])
@@ -157,6 +159,8 @@ model Unit {
   eligibleAssemblies     AssemblyEligibleUnit[]
   fees                   Fee[]
   announcementRecipients AnnouncementRecipient[]
+  /// Participaciones de voto de la unidad (H23).
+  voteParticipations VoteParticipation[]
 
   @@unique([towerId, number])
   @@map("units")
@@ -565,6 +569,10 @@ model AssemblyTopic {
 
   assembly Assembly      @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
   options  TopicOption[]
+  /// Unidades que han votado este tema (H23). Único por (topicId, unitId).
+  voteParticipations VoteParticipation[]
+  /// Votos emitidos para este tema (H23). Sin unidad ni usuario.
+  ballots            Ballot[]
 
   @@unique([assemblyId, order])
   @@map("assembly_topics")
@@ -580,6 +588,8 @@ model TopicOption {
   order   Int
 
   topic AssemblyTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  /// Votos a favor de esta opción (H23).
+  ballots Ballot[]
 
   @@unique([topicId, text])
   @@map("topic_options")
@@ -696,6 +706,47 @@ model AnnouncementRecipient {
   @@unique([announcementId, userId])
   @@index([userId])
   @@map("announcement_recipients")
+}
+
+// ---------------------------------------------------------------------------
+// Módulo 11: emisión del voto por unidad (H23)
+// ---------------------------------------------------------------------------
+
+/// Registro de que una unidad votó un tema (H23). Guarda quién y cuándo, pero
+/// no qué opción: eso vive en Ballot, sin vínculo con esta tabla, para que el
+/// voto sea secreto.
+///
+/// La restricción única (topicId, unitId) garantiza un voto por unidad por
+/// tema, incluso si dos residentes envían al mismo tiempo: el segundo choca
+/// con la restricción y recibe 409 "Tu unidad ya votó este tema.".
+model VoteParticipation {
+  id      String        @id @default(uuid()) @db.Uuid
+  topicId String        @map("topic_id") @db.Uuid
+  topic   AssemblyTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  unitId  String        @map("unit_id") @db.Uuid
+  unit    Unit          @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  userId  String        @map("user_id") @db.Uuid
+  user    User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  votedAt DateTime      @default(now()) @map("voted_at")
+
+  @@unique([topicId, unitId])
+  @@index([unitId])
+  @@map("vote_participations")
+}
+
+/// Voto emitido en un tema (H23). Guarda solo tema y opción, sin unidad,
+/// usuario ni fecha, para que no se pueda reconstruir "quién votó qué" aunque
+/// haya pocos votos en la misma hora. Los resultados se leen siempre
+/// agregados (conteo por opción).
+model Ballot {
+  id       String        @id @default(uuid()) @db.Uuid
+  topicId  String        @map("topic_id") @db.Uuid
+  topic    AssemblyTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  optionId String        @map("option_id") @db.Uuid
+  option   TopicOption   @relation(fields: [optionId], references: [id], onDelete: Restrict)
+
+  @@index([topicId, optionId])
+  @@map("ballots")
 }
 
 // ---------------------------------------------------------------------------

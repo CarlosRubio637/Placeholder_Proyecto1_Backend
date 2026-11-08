@@ -36,3 +36,18 @@ export const CATEGORY_LABELS: Record<AnnouncementCategory, string> = {
   MANTENIMIENTO: 'Mantenimiento programado',
   AVISO_GENERAL: 'Aviso general',
 };
+
+export const RESIDENT_TABS = ['vigentes', 'archivados'] as const;
+export type ResidentTab = (typeof RESIDENT_TABS)[number];
+
+export const RESIDENT_PAGE_SIZE = 10;
+export const RESIDENT_MAX_PAGE_SIZE = 50;
+export const RESIDENT_MAX_PAGE = 100_000;
+
+export const RESIDENT_ANNOUNCEMENT_MESSAGES = {
+  tab: 'Elige la pestaña: vigentes o archivados.',
+  page: 'La página debe ser un número entero mayor o igual a 1.',
+  pageTooHigh: 'La página no puede ser mayor que 100,000.',
+  pageSize: `El tamaño de página debe estar entre 1 y ${RESIDENT_MAX_PAGE_SIZE}.`,
+  notFound: 'El comunicado no existe.',
+} as const;

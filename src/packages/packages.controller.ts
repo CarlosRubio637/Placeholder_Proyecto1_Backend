@@ -16,6 +16,8 @@ import type { User } from '@PrismaClient';
 import {
   CreatePackageDto,
   ListPackagesQueryDto,
+  MyPackagesListDto,
+  MyPackagesQueryDto,
   PackageListDto,
   PackageResponseDto,
 } from './dto/index.js';
@@ -55,5 +57,34 @@ export class PackagesController {
   @ApiBadRequestResponse({ description: 'Filtros inválidos.' })
   list(@Query() query: ListPackagesQueryDto): Promise<PackageListDto> {
     return this.packagesService.list(query);
+  }
+}
+
+@ApiTags('paquetes')
+@ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: 'Token ausente, inválido o expirado.' })
+@ApiForbiddenResponse({
+  description: 'Solo los residentes pueden ver sus propios paquetes.',
+})
+@Controller('paquetes/mios')
+@Roles('RESIDENTE')
+export class MyPackagesController {
+  constructor(private readonly packagesService: PackagesService) {}
+
+  /**
+   * H20: el residente consulta los paquetes de su unidad. La unidad sale del
+   * token; un `unitId` en la consulta se rechaza con 400 (forbidNonWhitelisted).
+   */
+  @Get()
+  @ApiOperation({ summary: 'Lista los paquetes de la unidad del residente (H20)' })
+  @ApiOkResponse({ type: MyPackagesListDto })
+  @ApiBadRequestResponse({
+    description: 'Filtros inválidos (incluye enviar `unitId`).',
+  })
+  listMine(
+    @CurrentUser() user: User,
+    @Query() query: MyPackagesQueryDto,
+  ): Promise<MyPackagesListDto> {
+    return this.packagesService.listMine(user, query);
   }
 }

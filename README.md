@@ -455,6 +455,10 @@ Definidos en [tsconfig.json](tsconfig.json):
 | `@Users`, `@Users/*` | `src/users/…` |
 | `@Notifications`, `@Notifications/*` | `src/notifications/…` |
 | `@Incidents`, `@Incidents/*` | `src/incidents/…` |
+| `@Reservations`, `@Reservations/*` | `src/reservations/index.ts`, `src/reservations/*/index.ts` |
+| `@Fees`, `@Fees/*` | `src/fees/index.ts`, `src/fees/*/index.ts` |
+| `@Announcements`, `@Announcements/*` | `src/announcements/…` |
+| `@Directory`, `@Directory/*` | `src/directory/…` |
 | `@Health`, `@Health/*` | `src/health/…` |
 | `@Prisma`, `@Prisma/*` | `src/prisma/…` |
 | `@Common/*` | `src/common/*/index.ts` |

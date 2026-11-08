@@ -25,13 +25,27 @@ function debt(
   };
 }
 
+/**
+ * countActiveUnits simulado: sin lista devuelve `active`; con la lista de
+ * morosas devuelve cuántas de ellas están en `activeOverdue`.
+ */
+function activeUnits(active: number, activeOverdue: string[] = []) {
+  return vi.fn((unitIds?: string[]) =>
+    Promise.resolve(
+      unitIds
+        ? unitIds.filter((id) => activeOverdue.includes(id)).length
+        : active,
+    ),
+  );
+}
+
 function setup(
   overrides: Partial<Record<keyof DelinquencyRepository, unknown>> = {},
 ) {
   const repository = {
     owedAmount: vi.fn().mockResolvedValue(0),
     overdueUnitIds: vi.fn().mockResolvedValue([]),
-    countActiveUnits: vi.fn().mockResolvedValue(0),
+    countActiveUnits: activeUnits(0),
     unitDebts: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
@@ -132,27 +146,56 @@ describe('DelinquencyService.getReport', () => {
     expect(repository.owedAmount).toHaveBeenCalledWith(range);
     expect(repository.overdueUnitIds).toHaveBeenCalledWith(range);
     expect(repository.unitDebts).toHaveBeenCalledWith([], range);
+    expect(repository.countActiveUnits).toHaveBeenCalledWith();
+    expect(repository.countActiveUnits).toHaveBeenCalledWith([]);
   });
 
   it('calcula el resumen sobre todas las unidades', async () => {
     const { service } = setup({
       owedAmount: vi.fn().mockResolvedValue(1275.5),
       overdueUnitIds: vi.fn().mockResolvedValue(['u1', 'u2', 'u3']),
-      countActiveUnits: vi.fn().mockResolvedValue(40),
+      countActiveUnits: activeUnits(40, ['u1', 'u2', 'u3']),
     });
     const report = await service.getReport(query(), NOW);
     expect(report.summary).toEqual({
       owedAmount: 1275.5,
       overdueUnits: 3,
+      overdueActiveUnits: 3,
       activeUnits: 40,
       overduePct: 7.5,
     });
   });
 
+  it('el porcentaje solo cuenta las morosas con residente activo (caso C-404 de la revisión)', async () => {
+    // 4 morosas, una sin residentes; 5 unidades activas.
+    const { service } = setup({
+      overdueUnitIds: vi.fn().mockResolvedValue(['u1', 'u2', 'u3', 'c404']),
+      countActiveUnits: activeUnits(5, ['u1', 'u2', 'u3']),
+    });
+    const report = await service.getReport(query(), NOW);
+    expect(report.summary).toMatchObject({
+      overdueUnits: 4,
+      overdueActiveUnits: 3,
+      activeUnits: 5,
+      overduePct: 60,
+    });
+  });
+
+  it('el porcentaje nunca pasa de 100 % aunque haya morosas sin residente', async () => {
+    const active = ['u1', 'u2', 'u3', 'u4', 'u5'];
+    const { service } = setup({
+      overdueUnitIds: vi.fn().mockResolvedValue([...active, 'c404']),
+      countActiveUnits: activeUnits(5, active),
+    });
+    const report = await service.getReport(query(), NOW);
+    expect(report.summary.overdueUnits).toBe(6);
+    expect(report.summary.overduePct).toBe(100);
+  });
+
   it('redondea el porcentaje a un decimal', async () => {
     const { service } = setup({
       overdueUnitIds: vi.fn().mockResolvedValue(['u1']),
-      countActiveUnits: vi.fn().mockResolvedValue(3),
+      countActiveUnits: activeUnits(3, ['u1']),
     });
     const report = await service.getReport(query(), NOW);
     expect(report.summary.overduePct).toBe(33.3);
@@ -161,7 +204,7 @@ describe('DelinquencyService.getReport', () => {
   it('devuelve 0 % si no hay unidades activas', async () => {
     const { service } = setup({
       overdueUnitIds: vi.fn().mockResolvedValue(['u1']),
-      countActiveUnits: vi.fn().mockResolvedValue(0),
+      countActiveUnits: activeUnits(0),
     });
     const report = await service.getReport(query(), NOW);
     expect(report.summary.overduePct).toBe(0);
@@ -182,6 +225,21 @@ describe('DelinquencyService.getReport', () => {
       ['A-101', 7],
       ['B-202', 0],
       ['C-303', 0],
+    ]);
+  });
+
+  it('la antigüedad usa la cuota impaga más antigua aunque esté fuera del rango (caso A-101 de la revisión)', async () => {
+    // Monto del rango: $45 (octubre 2026); la deuda más antigua vence el 10/10/2025.
+    const { service } = setup({
+      overdueUnitIds: vi.fn().mockResolvedValue(['a101']),
+      unitDebts: vi.fn().mockResolvedValue([debt('A-101', 45, '2025-10-10')]),
+    });
+    const report = await service.getReport(
+      query({ from: '2026-10-01', to: TODAY }),
+      NOW,
+    );
+    expect(report.data).toEqual([
+      { unitCode: 'A-101', owedAmount: 45, ageDays: 393 },
     ]);
   });
 

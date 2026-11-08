@@ -41,10 +41,13 @@ function round(value: number, decimals: number): number {
  * Panel de morosidad (H32).
  *
  * - Monto adeudado: cuotas Pendiente y Moroso con vencimiento en el rango.
- * - Unidad morosa: al menos una cuota Moroso en el rango.
- * - Porcentaje: unidades morosas / unidades activas × 100, un decimal.
+ * - Unidad morosa: al menos una cuota Moroso en el rango. La tabla y el
+ *   conteo incluyen las que no tienen residente activo: su deuda es real.
+ * - Porcentaje: unidades morosas activas / unidades activas × 100, un
+ *   decimal. Así nunca pasa de 100 %, aunque haya morosas sin residente.
  * - Antigüedad: días completos desde el vencimiento de la cuota impaga más
- *   antigua del rango hasta hoy (fecha del condominio). Nunca negativa.
+ *   antigua de la unidad (sin importar el rango) hasta hoy, en la fecha del
+ *   condominio. Nunca negativa.
  */
 @Injectable()
 export class DelinquencyService {
@@ -78,7 +81,10 @@ export class DelinquencyService {
       this.repository.overdueUnitIds(range),
       this.repository.countActiveUnits(),
     ]);
-    const debts = await this.repository.unitDebts(overdueUnitIds, range);
+    const [overdueActiveUnits, debts] = await Promise.all([
+      this.repository.countActiveUnits(overdueUnitIds),
+      this.repository.unitDebts(overdueUnitIds, range),
+    ]);
 
     const todayDate = toDbDate(today).getTime();
     const rows: DelinquentUnitDto[] = debts
@@ -106,10 +112,11 @@ export class DelinquencyService {
       summary: {
         owedAmount: round(owedAmount, 2),
         overdueUnits: overdueUnitIds.length,
+        overdueActiveUnits,
         activeUnits,
         overduePct:
           activeUnits > 0
-            ? round((overdueUnitIds.length / activeUnits) * 100, 1)
+            ? round((overdueActiveUnits / activeUnits) * 100, 1)
             : 0,
       },
       data: rows.slice(start, start + pageSize),

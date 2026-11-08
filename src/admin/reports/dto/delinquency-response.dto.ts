@@ -11,9 +11,17 @@ export class DelinquencySummaryDto {
 
   @ApiProperty({
     example: 6,
-    description: 'Unidades con al menos una cuota Moroso en el rango.',
+    description:
+      'Unidades con al menos una cuota Moroso en el rango, tengan o no residente activo.',
   })
   overdueUnits!: number;
+
+  @ApiProperty({
+    example: 5,
+    description:
+      'Unidades morosas que tienen al menos un residente activo (numerador del porcentaje).',
+  })
+  overdueActiveUnits!: number;
 
   @ApiProperty({
     example: 40,
@@ -24,7 +32,7 @@ export class DelinquencySummaryDto {
   @ApiProperty({
     example: 15,
     description:
-      'overdueUnits / activeUnits × 100, con un decimal (0 si no hay unidades activas).',
+      'overdueActiveUnits / activeUnits × 100, con un decimal (0 si no hay unidades activas). Nunca pasa de 100.',
   })
   overduePct!: number;
 }
@@ -44,7 +52,7 @@ export class DelinquentUnitDto {
   @ApiProperty({
     example: 98,
     description:
-      'Días completos desde el vencimiento de su cuota impaga más antigua del rango.',
+      'Días completos desde el vencimiento de su cuota impaga más antigua, sin importar el rango.',
   })
   ageDays!: number;
 }

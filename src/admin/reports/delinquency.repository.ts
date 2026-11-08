@@ -10,7 +10,10 @@ export type UnitDebt = {
   unitCode: string;
   /** Suma de sus cuotas Pendiente y Moroso del rango. */
   owedAmount: number;
-  /** Vencimiento de su cuota impaga más antigua del rango. */
+  /**
+   * Vencimiento de su cuota impaga más antigua, sin importar el rango: la
+   * antigüedad es de la deuda de la unidad, no del filtro.
+   */
   oldestDueDate: Date;
 };
 
@@ -47,18 +50,27 @@ export class DelinquencyRepository {
     return groups.map((group) => group.unitId);
   }
 
-  /** Unidades con al menos un residente activo. */
-  countActiveUnits(): Promise<number> {
+  /**
+   * Unidades con al menos un residente activo. Con `unitIds`, cuenta solo las
+   * activas de esa lista (por ejemplo, las morosas), con la misma regla.
+   */
+  countActiveUnits(unitIds?: string[]): Promise<number> {
     return this.prisma.unit.count({
-      where: { residents: { some: { role: Role.RESIDENTE, isActive: true } } },
+      where: {
+        ...(unitIds ? { id: { in: unitIds } } : {}),
+        residents: { some: { role: Role.RESIDENTE, isActive: true } },
+      },
     });
   }
 
-  /** Deuda del rango de cada unidad indicada, agrupada por unidad. */
+  /**
+   * Deuda de cada unidad indicada: el monto es el del rango; el vencimiento
+   * más antiguo, el de toda su deuda impaga.
+   */
   async unitDebts(unitIds: string[], range: DueDateRange): Promise<UnitDebt[]> {
     if (unitIds.length === 0) return [];
 
-    const [groups, units] = await Promise.all([
+    const [amounts, oldest, units] = await Promise.all([
       this.prisma.fee.groupBy({
         by: ['unitId'],
         where: {
@@ -67,6 +79,10 @@ export class DelinquencyRepository {
           dueDate: this.dueDate(range),
         },
         _sum: { amount: true },
+      }),
+      this.prisma.fee.groupBy({
+        by: ['unitId'],
+        where: { unitId: { in: unitIds }, status: { in: UNPAID } },
         _min: { dueDate: true },
       }),
       this.prisma.unit.findMany({
@@ -76,9 +92,12 @@ export class DelinquencyRepository {
     ]);
 
     const codes = new Map(units.map((unit) => [unit.id, unit.code]));
-    return groups.flatMap((group) => {
+    const oldestDueDates = new Map(
+      oldest.map((group) => [group.unitId, group._min.dueDate]),
+    );
+    return amounts.flatMap((group) => {
       const unitCode = codes.get(group.unitId);
-      const oldestDueDate = group._min.dueDate;
+      const oldestDueDate = oldestDueDates.get(group.unitId);
       if (!unitCode || !oldestDueDate) return [];
       return [
         {

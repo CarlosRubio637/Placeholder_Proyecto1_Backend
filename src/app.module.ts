@@ -17,6 +17,7 @@ import { TowersModule } from './towers/towers.module.js';
 import { PackagesModule } from './packages/packages.module.js';
 import { AssembliesModule } from './admin/assemblies/assemblies.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
+import { VotingModule } from './voting/voting.module.js';
 
 @Module({
   imports: [
@@ -39,7 +40,9 @@ import { ScheduleModule } from '@nestjs/schedule';
     TowersModule,
     PackagesModule,
     AssembliesModule,
+    VotingModule,
     ScheduleModule.forRoot(),
+
   ],
   providers: [
     {

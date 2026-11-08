@@ -84,6 +84,11 @@ export class AssembliesService {
       this.prisma.assembly.count({ where }),
     ]);
 
+    // H23: unidades distintas que han votado al menos un tema de cada
+    // asamblea. Se lee aquí (y no en la consulta principal) porque Prisma
+    // no deja contar distinct sobre una relación anidada en `_count`.
+    const votedMap = await this.countVotedUnits(rows.map((row) => row.id));
+
     const data = rows.map((row) => ({
       id: row.id,
       title: row.title,
@@ -91,9 +96,7 @@ export class AssembliesService {
       endsAt: row.endsAt,
       status: row.status,
       topicCount: row._count.topics,
-      // TODO H23: contar las unidades distintas con VoteParticipation en esta
-      // asamblea. Hasta que exista ese modelo, nadie ha votado.
-      votedUnits: 0,
+      votedUnits: votedMap.get(row.id) ?? 0,
     }));
 
     return { data, total, page, pageSize };
@@ -241,6 +244,40 @@ export class AssembliesService {
         })),
       },
     }));
+  }
+
+  /**
+   * H23: cuenta unidades distintas que han votado al menos un tema de cada
+   * asamblea. Hace una consulta a `voteParticipation` filtrando por los temas
+   * de las asambleas pedidas y agrupa en memoria por asamblea; para 10
+   * asambleas por página es intrascendente.
+   */
+  private async countVotedUnits(
+    assemblyIds: string[],
+  ): Promise<Map<string, number>> {
+    const result = new Map<string, number>();
+    if (assemblyIds.length === 0) return result;
+
+    const participations = await this.prisma.voteParticipation.findMany({
+      where: { topic: { assemblyId: { in: assemblyIds } } },
+      select: { unitId: true, topic: { select: { assemblyId: true } } },
+    });
+
+    // Unidades distintas por asamblea.
+    const byAssembly = new Map<string, Set<string>>();
+    for (const row of participations) {
+      const assemblyId = row.topic.assemblyId;
+      let units = byAssembly.get(assemblyId);
+      if (!units) {
+        units = new Set();
+        byAssembly.set(assemblyId, units);
+      }
+      units.add(row.unitId);
+    }
+    for (const [assemblyId, units] of byAssembly) {
+      result.set(assemblyId, units.size);
+    }
+    return result;
   }
 
   /** Respuesta con la forma del PDF (sin campos internos como createdById). */

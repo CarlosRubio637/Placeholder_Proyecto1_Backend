@@ -136,3 +136,48 @@ describe('ReservationsService.create', () => {
     await expect(setup(new AreaNotFoundError('x')).service.create(resident, valid, NOW)).rejects.toBeInstanceOf(NotFoundException);
   });
 });
+
+describe('ReservationsService.availability', () => {
+  function setupAvailability(foundArea: CommonArea | null = area) {
+    const findActiveArea = vi.fn().mockResolvedValue(foundArea);
+    const findDayOccupancy = vi.fn().mockResolvedValue({
+      blocked: false,
+      reservations: [{ id: 'res-1', startTime: '15:00', unitId: 'unit-1' }],
+    });
+    const service = new ReservationsService(
+      { findActiveArea, findDayOccupancy } as unknown as ReservationRepository,
+      {} as NotificationsService,
+    );
+    return { service, findDayOccupancy };
+  }
+
+  it('devuelve las franjas y usa la hora actual cuando la fecha es hoy', async () => {
+    const result = await setupAvailability().service.availability(resident, area.id, '2026-11-06', NOW);
+    expect(result).toMatchObject({ areaId: 'area-1', date: '2026-11-06' });
+    expect(result.slots.find((s) => s.startTime === '14:00')?.status).toBe('PASADO');
+    expect(result.slots.find((s) => s.startTime === '15:00')).toMatchObject({
+      status: 'RESERVADO',
+      ownReservationId: 'res-1',
+    });
+    expect(result.slots.find((s) => s.startTime === '16:00')?.status).toBe('DISPONIBLE');
+  });
+
+  it('en una fecha futura ninguna franja es pasada', async () => {
+    const result = await setupAvailability().service.availability(resident, area.id, '2026-12-06', NOW);
+    expect(result.slots.some((s) => s.status === 'PASADO')).toBe(false);
+  });
+
+  it.each(['2026-11-05', '2026-12-07'])('responde 400 con la fecha %s fuera de rango', async (date) => {
+    const promise = setupAvailability().service.availability(resident, area.id, date, NOW);
+    await expect(promise).rejects.toBeInstanceOf(BadRequestException);
+    await expect(promise).rejects.toMatchObject({
+      response: { field: 'date', message: ['La fecha debe estar entre hoy y 06/12/2026.'] },
+    });
+  });
+
+  it('responde 404 si el área no existe o está deshabilitada', async () => {
+    await expect(
+      setupAvailability(null).service.availability(resident, 'x', '2026-11-10', NOW),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});

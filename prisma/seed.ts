@@ -3,6 +3,16 @@ import { randomInt } from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../src/generated/prisma/client.js';
+import {
+  addMonths,
+  currentPeriod,
+  defaultConcept,
+} from '../src/fees/billing-period/billing-period.js';
+import {
+  addDays,
+  todayIso,
+  toDbDate,
+} from '../src/common/time/condominium-time.js';
 
 const DEMO_EMAIL = 'demo@example.com';
 const DEMO_PASSWORD = 'Demo1234!';
@@ -26,6 +36,7 @@ async function main() {
   await seedTestAccounts();
   await seedMaintenanceStaff();
   await seedCommonAreas();
+  await seedFees();
 }
 
 // --- H39: torres y unidades --------------------------------------------------
@@ -311,6 +322,132 @@ async function seedCommonAreas() {
     });
   }
   console.log(`Áreas comunes listas: ${COMMON_AREAS.length}`);
+}
+
+// --- H39: cuotas de los 2 meses anteriores (Módulo 1) ------------------------
+
+const FEE_AMOUNT = '45.00';
+const FEE_DUE_DAY = '10'; // Vencimiento por defecto de H3.
+const OVERDUE_AFTER_DAYS = 30; // H5: Moroso cuando venció hace más de 30 días.
+const REMINDER_DAYS_BEFORE = 5; // H5: recordatorio 5 días antes del vencimiento.
+
+/**
+ * Qué pagó cada unidad: [mes anterior a ese, mes anterior]. Las que no
+ * aparecen (unidades que el equipo haya ocupado al probar) quedan pagadas.
+ * Deja datos para el estado de cuenta (H2), la morosidad (H4, H32) y H5:
+ * las cuotas sin pagar del penúltimo mes ya están en Moroso y las del último
+ * mes siguen Pendientes hasta que se cumplan los 30 días.
+ */
+const FEE_PAYMENTS: Record<string, [boolean, boolean]> = {
+  'A-101': [true, true],
+  'A-102': [true, false],
+  'B-101': [true, true],
+  'B-203': [false, false],
+  'C-304': [false, false],
+};
+
+/** Fecha y hora de El Salvador (UTC-6, sin horario de verano) → Date. */
+function svDateTime(isoDate: string, time: string): Date {
+  return new Date(`${isoDate}T${time}:00-06:00`);
+}
+
+/**
+ * Genera las cuotas de los 2 meses anteriores como lo haría la
+ * administración con H3 (una generación por periodo, solo unidades con algún
+ * residente activo) y les da el estado que tendrían hoy según H5.
+ * Idempotente: si el periodo ya tiene una generación no lo toca, así no pisa
+ * pagos ni cambios hechos al probar.
+ */
+async function seedFees() {
+  const admin = await prisma.user.findUniqueOrThrow({
+    where: { email: 'admin@condominio.test' },
+  });
+  const now = new Date();
+  const today = todayIso(now);
+  const thisPeriod = currentPeriod(today);
+  const units = await prisma.unit.findMany({
+    where: { residents: { some: { role: 'RESIDENTE', isActive: true } } },
+    select: { id: true, code: true },
+    orderBy: { code: 'asc' },
+  });
+
+  for (const [index, monthsBack] of [2, 1].entries()) {
+    const period = addMonths(thisPeriod, -monthsBack);
+    const exists = await prisma.feeGeneration.findFirst({ where: { period } });
+    if (exists) {
+      console.log(`Cuotas de ${period}: ya generadas, sin cambios`);
+      continue;
+    }
+
+    const dueIso = `${period}-${FEE_DUE_DAY}`;
+    const concept = defaultConcept(period);
+    // H3 solo permite generar desde el mes del periodo: el día 1 a las 9:00.
+    const generatedAt = svDateTime(`${period}-01`, '09:00');
+    const overdueIso = addDays(dueIso, OVERDUE_AFTER_DAYS + 1);
+    const reminderAt = svDateTime(
+      addDays(dueIso, -REMINDER_DAYS_BEFORE),
+      '08:00',
+    );
+
+    const fees = units.map((unit) => {
+      const paid = FEE_PAYMENTS[unit.code]?.[index] ?? true;
+      if (paid) {
+        // Pagó antes del recordatorio: no tiene reminderSentAt.
+        return {
+          unitId: unit.id,
+          status: 'PAGADO' as const,
+          paidAt: svDateTime(`${period}-03`, '10:30'),
+        };
+      }
+      const overdue = overdueIso <= today;
+      return {
+        unitId: unit.id,
+        status: overdue ? ('MOROSO' as const) : ('PENDIENTE' as const),
+        // H5 la pasa a Moroso a las 00:05 del día 31 después del vencimiento.
+        overdueAt: overdue ? svDateTime(overdueIso, '00:05') : null,
+        reminderSentAt: reminderAt <= now ? reminderAt : null,
+      };
+    });
+
+    await prisma.$transaction(async (tx) => {
+      const generation = await tx.feeGeneration.create({
+        data: {
+          period,
+          amount: FEE_AMOUNT,
+          dueDate: toDbDate(dueIso),
+          concept,
+          createdCount: 0,
+          skippedCount: 0,
+          createdById: admin.id,
+          createdAt: generatedAt,
+        },
+      });
+      const { count } = await tx.fee.createMany({
+        data: fees.map((fee) => ({
+          ...fee,
+          generationId: generation.id,
+          period,
+          concept,
+          amount: FEE_AMOUNT,
+          dueDate: toDbDate(dueIso),
+          createdAt: generatedAt,
+        })),
+        skipDuplicates: true,
+      });
+      await tx.feeGeneration.update({
+        where: { id: generation.id },
+        data: { createdCount: count, skippedCount: units.length - count },
+      });
+    });
+
+    const summary = fees.reduce<Record<string, number>>((acc, fee) => {
+      acc[fee.status] = (acc[fee.status] ?? 0) + 1;
+      return acc;
+    }, {});
+    console.log(
+      `Cuotas de ${period}: ${fees.length} (${JSON.stringify(summary)})`,
+    );
+  }
 }
 
 try {

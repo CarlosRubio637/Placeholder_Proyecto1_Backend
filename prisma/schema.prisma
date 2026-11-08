@@ -74,6 +74,7 @@ model User {
   feeGenerations        FeeGeneration[]
   announcementsCreated  Announcement[]
   announcementReceipts  AnnouncementRecipient[]
+  directoryPreference   DirectoryPreference?
 
   @@index([unitId])
   @@map("users")
@@ -695,4 +696,22 @@ model AnnouncementRecipient {
   @@unique([announcementId, userId])
   @@index([userId])
   @@map("announcement_recipients")
+}
+
+// ---------------------------------------------------------------------------
+// Módulo 8: directorio (H28, H29)
+// ---------------------------------------------------------------------------
+
+model DirectoryPreference {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  user      User     @relation(fields: [userId], references: [id])
+  visible   Boolean  @default(false)
+  showName  Boolean  @default(false) @map("show_name")
+  showUnit  Boolean  @default(false) @map("show_unit")
+  showPhone Boolean  @default(false) @map("show_phone")
+  showEmail Boolean  @default(false) @map("show_email")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("directory_preferences")
 }

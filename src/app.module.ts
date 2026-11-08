@@ -9,6 +9,7 @@ import { UsersModule } from '@Users';
 import { NotificationsModule } from '@Notifications';
 import { IncidentsModule } from '@Incidents';
 import { ReservationsModule } from '@Reservations';
+import { DirectoryModule } from '@Directory';
 import { FeesModule } from '@Fees';
 import { AnnouncementsModule } from '@Announcements';
 import { validateEnv } from '@Config';
@@ -39,6 +40,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     TowersModule,
     PackagesModule,
     AssembliesModule,
+    DirectoryModule,
     ScheduleModule.forRoot(),
   ],
   providers: [

@@ -43,7 +43,9 @@ export function fromDbDate(date: Date): string {
 
 /** Días del rango inclusivo: del 1 al 1 es 1 día. */
 export function daysInRange(startIso: string, endIso: string): number {
-  return (toDbDate(endIso).getTime() - toDbDate(startIso).getTime()) / DAY_MS + 1;
+  return (
+    (toDbDate(endIso).getTime() - toDbDate(startIso).getTime()) / DAY_MS + 1
+  );
 }
 
 /** "AAAA-MM-DD" → "DD/MM/AAAA", para mensajes al usuario. */
@@ -55,4 +57,14 @@ export function formatDateEs(isoDate: string): string {
 /** "AAAA-MM-DD" más `days` días, "AAAA-MM-DD". */
 export function addDays(isoDate: string, days: number): string {
   return fromDbDate(new Date(toDbDate(isoDate).getTime() + days * DAY_MS));
+}
+
+/**
+ * Instante en que empieza el día "AAAA-MM-DD" en el condominio. El Salvador
+ * está en UTC−6 todo el año (sin horario de verano), así que el desfase es fijo.
+ * Sirve para filtrar columnas de fecha y hora (createdAt, resolvedAt) por días
+ * del calendario del condominio.
+ */
+export function condominiumDayStart(isoDate: string): Date {
+  return new Date(`${isoDate}T00:00:00.000-06:00`);
 }

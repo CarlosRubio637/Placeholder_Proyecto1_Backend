@@ -77,6 +77,8 @@ export function api(app: INestApplication, token?: string) {
     get: (path: string) => withAuth(request(server).get(url(path))),
     post: (path: string) => withAuth(request(server).post(url(path))),
     patch: (path: string) => withAuth(request(server).patch(url(path))),
+    put: (path: string) => withAuth(request(server).put(url(path))),
+    delete: (path: string) => withAuth(request(server).delete(url(path))),
   };
 }
 
@@ -97,3 +99,37 @@ export const PNG = Buffer.from([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x01, 0x02, 0x03,
 ]);
 export const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x04, 0x05, 0x06]);
+
+/** Acceso directo a la base, para preparar datos que la API no permite crear. */
+export function db(app: INestApplication): PrismaService {
+  return app.get(PrismaService);
+}
+
+type NotificationRow = {
+  id: string;
+  title: string;
+  message: string;
+  sourceModule: string;
+  referenceType: string | null;
+  referenceId: string | null;
+  readAt: string | null;
+};
+
+/** Bandeja completa del usuario (H31). */
+export async function inbox(
+  app: INestApplication,
+  token: string,
+): Promise<NotificationRow[]> {
+  const { body } = await api(app, token).get('notificaciones').expect(200);
+  return (body as { data: NotificationRow[] }).data;
+}
+
+export async function unreadCount(
+  app: INestApplication,
+  token: string,
+): Promise<number> {
+  const { body } = await api(app, token)
+    .get('notificaciones/no-leidas/conteo')
+    .expect(200);
+  return (body as { count: number }).count;
+}

@@ -77,6 +77,14 @@ model User {
   /// Participaciones de voto registradas por el residente (H23).
   voteParticipations    VoteParticipation[]
   directoryPreference   DirectoryPreference?
+  /// Visitas que autorizó como residente o registró como seguridad (H14, H15).
+  visitsCreated         Visit[]                 @relation("VisitCreatedBy")
+  /// Solicitudes de visita que aprobó o rechazó como residente (H15).
+  visitsResponded       Visit[]                 @relation("VisitRespondedBy")
+  /// Entradas de visitantes que registró como seguridad (H16).
+  visitEntries          Visit[]                 @relation("VisitEntryBy")
+  /// Salidas de visitantes que registró como seguridad (H17).
+  visitExits            Visit[]                 @relation("VisitExitBy")
 
   @@index([unitId])
   @@map("users")
@@ -160,7 +168,9 @@ model Unit {
   fees                   Fee[]
   announcementRecipients AnnouncementRecipient[]
   /// Participaciones de voto de la unidad (H23).
-  voteParticipations VoteParticipation[]
+  voteParticipations     VoteParticipation[]
+  /// Visitas con destino a la unidad (H14-H18).
+  visits                 Visit[]
 
   @@unique([towerId, number])
   @@map("units")
@@ -567,8 +577,8 @@ model AssemblyTopic {
   /// 5 a 200 caracteres.
   question   String @db.VarChar(200)
 
-  assembly Assembly      @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
-  options  TopicOption[]
+  assembly           Assembly            @relation(fields: [assemblyId], references: [id], onDelete: Cascade)
+  options            TopicOption[]
   /// Unidades que han votado este tema (H23). Único por (topicId, unitId).
   voteParticipations VoteParticipation[]
   /// Votos emitidos para este tema (H23). Sin unidad ni usuario.
@@ -587,7 +597,7 @@ model TopicOption {
   /// 1 a 6.
   order   Int
 
-  topic AssemblyTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  topic   AssemblyTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
   /// Votos a favor de esta opción (H23).
   ballots Ballot[]
 
@@ -765,4 +775,89 @@ model DirectoryPreference {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("directory_preferences")
+}
+
+// ---------------------------------------------------------------------------
+// Módulo 4: control de acceso de visitas (H14-H18)
+// ---------------------------------------------------------------------------
+
+enum VisitOrigin {
+  /// El residente la autorizó antes de que llegara (H14).
+  PREAUTORIZADA
+  /// Seguridad la registró en portería y el residente responde (H15, H16).
+  SIN_AUTORIZACION_PREVIA
+}
+
+enum VisitStatus {
+  AUTORIZADA
+  PENDIENTE_AUTORIZACION
+  RECHAZADA
+  DENTRO
+  FINALIZADA
+  CANCELADA
+  /// Autorizada que no se usó: a las 22:00 del día de la visita (H14).
+  VENCIDA
+}
+
+/// Visita al condominio (H14-H18). No se borra: es la bitácora de acceso.
+model Visit {
+  id     String      @id @default(uuid()) @db.Uuid
+  /// 6 caracteres del alfabeto sin ambiguos (ver visit-code.ts). Nulo en las
+  /// visitas sin autorización previa.
+  code   String?     @unique @db.Char(6)
+  origin VisitOrigin
+
+  /// Unidad destino.
+  unitId      String @map("unit_id") @db.Uuid
+  unit        Unit   @relation(fields: [unitId], references: [id])
+  /// Residente que la autorizó (H14) o agente que registró la solicitud (H15).
+  createdById String @map("created_by_id") @db.Uuid
+  createdBy   User   @relation("VisitCreatedBy", fields: [createdById], references: [id])
+
+  /// 3 a 80 caracteres.
+  visitorName    String       @map("visitor_name") @db.VarChar(80)
+  documentType   DocumentType @map("document_type")
+  /// DUI 00000000-0 o pasaporte de 6 a 12 letras o números (en mayúsculas).
+  documentNumber String       @map("document_number") @db.VarChar(12)
+  /// 5 a 100 caracteres.
+  reason         String       @db.VarChar(100)
+  /// Nombre y documento en minúsculas y sin tildes, para la búsqueda de H18.
+  searchKey      String       @map("search_key") @db.VarChar(100)
+
+  visitDate    DateTime @map("visit_date") @db.Date
+  /// "HH:mm". Solo en visitas preautorizadas.
+  expectedTime String?  @map("expected_time") @db.Char(5)
+  /// 06:00 y 22:00 del día de la visita, hora del condominio.
+  validFrom    DateTime @map("valid_from")
+  validUntil   DateTime @map("valid_until")
+
+  status VisitStatus
+
+  // Respuesta del residente a una solicitud sin autorización previa (H15).
+  respondedById String?   @map("responded_by_id") @db.Uuid
+  respondedBy   User?     @relation("VisitRespondedBy", fields: [respondedById], references: [id])
+  respondedAt   DateTime? @map("responded_at")
+  /// Máximo 100 caracteres.
+  rejectReason  String?   @map("reject_reason") @db.VarChar(100)
+
+  // Entrada (H16) y salida (H17), registradas por seguridad.
+  entryAt   DateTime? @map("entry_at")
+  entryById String?   @map("entry_by_id") @db.Uuid
+  entryBy   User?     @relation("VisitEntryBy", fields: [entryById], references: [id])
+  exitAt    DateTime? @map("exit_at")
+  exitById  String?   @map("exit_by_id") @db.Uuid
+  exitBy    User?     @relation("VisitExitBy", fields: [exitById], references: [id])
+
+  /// Momento de la cancelación por el residente (H15).
+  cancelledAt DateTime? @map("cancelled_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  /// Autorización duplicada (H14) y "Mis visitas" (H15).
+  @@index([unitId, visitDate, status])
+  /// Vencimiento programado (H14) y visitantes dentro (H18).
+  @@index([status, validUntil])
+  @@index([searchKey])
+  @@map("visits")
 }

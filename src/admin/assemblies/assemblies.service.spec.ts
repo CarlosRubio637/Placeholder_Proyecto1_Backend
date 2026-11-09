@@ -66,6 +66,7 @@ function setup() {
       findUnique: vi.fn(),
       deleteMany: vi.fn(),
     },
+    voteParticipation: { findMany: vi.fn().mockResolvedValue([]) },
     $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
   };
   const service = new AssembliesService(prisma as unknown as PrismaService);
@@ -236,6 +237,47 @@ describe('AssembliesService.findAll (H22)', () => {
       topicCount: 3,
       votedUnits: 0,
     });
+  });
+});
+
+describe('AssembliesService.findAll: unidades que votaron (H23)', () => {
+  const list = { page: 1, pageSize: 10 };
+  const vote = (assemblyId: string, unitId: string) => ({
+    unitId,
+    topic: { assemblyId },
+  });
+
+  it('cuenta unidades distintas por asamblea, no votos por tema', async () => {
+    const { service, prisma } = setup();
+    prisma.assembly.findMany.mockResolvedValue([
+      { ...row, id: 'as-1', _count: { topics: 2 } },
+      { ...row, id: 'as-2', _count: { topics: 1 } },
+      { ...row, id: 'as-3', _count: { topics: 1 } },
+    ]);
+    prisma.assembly.count.mockResolvedValue(3);
+    prisma.voteParticipation.findMany.mockResolvedValue([
+      vote('as-1', 'u1'), // la misma unidad en dos temas cuenta una vez
+      vote('as-1', 'u1'),
+      vote('as-1', 'u2'),
+      vote('as-2', 'u1'),
+    ]);
+
+    const { data } = await service.findAll(list);
+
+    expect(data.map((item) => item.votedUnits)).toEqual([2, 1, 0]);
+    expect(prisma.voteParticipation.findMany.mock.calls[0][0].where).toEqual({
+      topic: { assemblyId: { in: ['as-1', 'as-2', 'as-3'] } },
+    });
+  });
+
+  it('una página vacía no consulta las participaciones', async () => {
+    const { service, prisma } = setup();
+    prisma.assembly.findMany.mockResolvedValue([]);
+    prisma.assembly.count.mockResolvedValue(0);
+
+    await expect(service.findAll(list)).resolves.toMatchObject({ data: [] });
+
+    expect(prisma.voteParticipation.findMany).not.toHaveBeenCalled();
   });
 });
 

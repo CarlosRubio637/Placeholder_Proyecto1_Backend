@@ -552,7 +552,7 @@ Cada carpeta de capa incluye un `index.ts` que reexporta sus elementos, de modo 
 | `lint` | Corre oxlint con chequeos type-aware |
 | `format` | Formatea con Prettier |
 | `test` | Tests unitarios |
-| `test:e2e` | Tests end-to-end |
+| `test:e2e` | Pruebas de integración contra una base propia (`si_be_test`), que se recrea en cada corrida; solo necesita el Postgres de Docker |
 | `test:cov` | Tests con reporte de cobertura |
 | `prisma:generate` | Regenera el cliente de Prisma |
 | `prisma:migrate` | Crea y aplica una migración (desarrollo) |

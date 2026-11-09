@@ -7,8 +7,14 @@ export const MAX_PHOTOS = 3;
 /** 5 MB por fotografía. */
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
-/** Carpeta raíz de los archivos subidos. Las fotos van en incidencias/<id>/. */
-export const UPLOADS_ROOT = resolve(process.cwd(), 'uploads');
+/**
+ * Carpeta raíz de los archivos subidos. Las fotos van en incidencias/<id>/.
+ * UPLOADS_DIR permite cambiarla; las pruebas de integración usan una temporal.
+ */
+export const UPLOADS_ROOT = resolve(
+  process.cwd(),
+  process.env.UPLOADS_DIR || 'uploads',
+);
 export const INCIDENT_UPLOADS_DIR = 'incidencias';
 
 /** Zona horaria del condominio: define el año del número INC-AAAA-NNNNN. */

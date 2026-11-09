@@ -1,29 +1,40 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
-import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module.js';
+import type { INestApplication } from '@nestjs/common';
+import { api, createTestApp, login } from './support/app.js';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('Arranque de la API', () => {
+  let app: INestApplication;
 
-  beforeEach(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    await app.init();
+  beforeAll(async () => {
+    app = await createTestApp();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
-  });
-
-  afterEach(async () => {
+  afterAll(async () => {
     await app.close();
+  });
+
+  it('usa la misma configuración que producción: prefijo /api/v1', async () => {
+    await api(app).get('').expect(200).expect('Hello World!');
+  });
+
+  it('el guard global exige sesión', async () => {
+    await api(app).get('auth/me').expect(401);
+  });
+
+  it('el seed está cargado y las cuentas de prueba inician sesión', async () => {
+    const token = await login(app, 'admin');
+    const { body } = await api(app, token).get('auth/me').expect(200);
+    expect(body).toMatchObject({ role: 'ADMINISTRADOR', unit: null });
+  });
+
+  it('la validación global rechaza campos que no están en el contrato', async () => {
+    const { body } = await api(app)
+      .post('auth/login')
+      .send({
+        email: 'a@condominio.test',
+        password: 'x',
+        role: 'ADMINISTRADOR',
+      })
+      .expect(400);
+    expect(body).toMatchObject({ statusCode: 400, field: 'role' });
   });
 });

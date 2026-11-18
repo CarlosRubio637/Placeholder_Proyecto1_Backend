@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -15,6 +24,8 @@ import { CurrentUser, Roles } from '@Auth/decorators';
 import type { User } from '@PrismaClient';
 import {
   CreatePackageDto,
+  DeliverPackageDto,
+  DeliveredPackageDto,
   ListPackagesQueryDto,
   MyPackagesListDto,
   MyPackagesQueryDto,
@@ -57,6 +68,24 @@ export class PackagesController {
   @ApiBadRequestResponse({ description: 'Filtros inválidos.' })
   list(@Query() query: ListPackagesQueryDto): Promise<PackageListDto> {
     return this.packagesService.list(query);
+  }
+
+  /** H21: seguridad registra a quién entrega el paquete. */
+  @Post(':id/entrega')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Registra la entrega de un paquete (H21)' })
+  @ApiOkResponse({ type: DeliveredPackageDto })
+  @ApiBadRequestResponse({
+    description: 'Datos inválidos. `field` indica el campo que falló.',
+  })
+  @ApiNotFoundResponse({ description: 'El paquete no existe.' })
+  @ApiConflictResponse({ description: 'El paquete ya fue entregado.' })
+  deliver(
+    @CurrentUser() user: User,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: DeliverPackageDto,
+  ): Promise<DeliveredPackageDto> {
+    return this.packagesService.deliver(user, id, dto);
   }
 }
 

@@ -178,6 +178,18 @@ export class VotingService {
 
     try {
       const participation = await this.prisma.$transaction(async (tx) => {
+        // H24: se vuelve a comprobar que la asamblea siga Abierta DENTRO de la
+        // transacción, con un bloqueo compartido sobre su fila. Si el cierre
+        // (H22/H24) está en curso, este voto espera a que termine y luego ve
+        // la asamblea Cerrada: ningún voto entra después del cierre.
+        const open = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM assemblies
+          WHERE id = ${topic.assembly.id}::uuid AND status = 'ABIERTA'
+          FOR SHARE`;
+        if (open.length === 0) {
+          throw new ConflictException(VOTING_MESSAGES.notOpen);
+        }
+
         // Inserta PRIMERO la participación: la restricción única
         // (topicId, unitId) deja pasar solo el primer voto de la unidad.
         const created = await tx.voteParticipation.create({

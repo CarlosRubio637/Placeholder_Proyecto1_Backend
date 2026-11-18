@@ -583,6 +583,8 @@ model AssemblyTopic {
   voteParticipations VoteParticipation[]
   /// Votos emitidos para este tema (H23). Sin unidad ni usuario.
   ballots            Ballot[]
+  /// Resultado guardado al cerrar la asamblea (H24). Uno por tema.
+  result             TopicResult?
 
   @@unique([assemblyId, order])
   @@map("assembly_topics")
@@ -860,4 +862,24 @@ model Visit {
   @@index([status, validUntil])
   @@index([searchKey])
   @@map("visits")
+}
+
+/// Resultado de un tema, calculado y guardado en la misma transacción que
+/// cierra la asamblea. No se modifica ni se borra: no hay endpoint para
+/// cambiarlo.
+model TopicResult {
+  id             String        @id @default(uuid()) @db.Uuid
+  topicId        String        @unique @map("topic_id") @db.Uuid
+  topic          AssemblyTopic @relation(fields: [topicId], references: [id], onDelete: Restrict)
+  eligibleUnits  Int           @map("eligible_units")
+  votedUnits     Int           @map("voted_units")
+  totalVotes     Int           @map("total_votes")
+  /// Lista de { optionId, votes } en el orden de las opciones del tema.
+  optionCounts   Json          @map("option_counts")
+  /// null si hubo empate en el máximo o no hubo votos.
+  winnerOptionId String?       @map("winner_option_id") @db.Uuid
+  /// Momento del cierre.
+  computedAt     DateTime      @map("computed_at")
+
+  @@map("topic_results")
 }

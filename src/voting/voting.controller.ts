@@ -6,21 +6,35 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
 } from '@nestjs/common';
 import { CurrentUser, Roles } from '@Auth/decorators';
 import type { User } from '@PrismaClient';
-import { CastVoteDto } from './dto/index.js';
+import { CastVoteDto, ClosedAssembliesQueryDto } from './dto/index.js';
+import { ResultsService } from './results.service.js';
 import { VotingService } from './voting.service.js';
 
 @Controller('asambleas')
 @Roles('RESIDENTE')
 export class VotingController {
-  constructor(private readonly votingService: VotingService) {}
+  constructor(
+    private readonly votingService: VotingService,
+    private readonly resultsService: ResultsService,
+  ) {}
 
   /** H23: asambleas Abiertas en las que la unidad puede votar. */
   @Get('activas')
   findActive(@CurrentUser() user: User) {
     return this.votingService.findActive(user);
+  }
+
+  /**
+   * H24: asambleas Cerradas, la más reciente primero. Va ANTES de ':id' para
+   * que "cerradas" no se interprete como un id.
+   */
+  @Get('cerradas')
+  findClosed(@Query() query: ClosedAssembliesQueryDto) {
+    return this.resultsService.findClosed(query);
   }
 
   /** H23: detalle de una asamblea con el estado de voto de la unidad. */

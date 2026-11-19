@@ -37,6 +37,7 @@ async function main() {
   await seedMaintenanceStaff();
   await seedCommonAreas();
   await seedFees();
+  if (process.env.NODE_ENV !== 'test') await seedAnnouncementsScenario();
 }
 
 // --- H39: torres y unidades --------------------------------------------------
@@ -446,6 +447,124 @@ async function seedFees() {
     }, {});
     console.log(
       `Cuotas de ${period}: ${fees.length} (${JSON.stringify(summary)})`,
+    );
+  }
+}
+
+type AnnouncementScenario = {
+  title: string;
+  body: string;
+  category: 'CORTE_SERVICIO' | 'MANTENIMIENTO' | 'AVISO_GENERAL';
+  towerLetters: string[];
+  publishedDaysAgo: number;
+  expiresInDays: number;
+  readers: string[];
+};
+
+const HOUR_MS = 60 * 60 * 1000;
+
+const ANNOUNCEMENTS_SCENARIO: AnnouncementScenario[] = [
+  {
+    title: 'Mantenimiento de ascensores',
+    body: 'El lunes no habrá servicio de ascensores de 8:00 a 12:00 por mantenimiento preventivo.',
+    category: 'MANTENIMIENTO',
+    towerLetters: [],
+    publishedDaysAgo: 2,
+    expiresInDays: 10,
+    readers: ['residente1', 'residente4'],
+  },
+  {
+    title: 'Corte de agua en Torre B',
+    body: 'El jueves no habrá agua en la Torre B de 9:00 a 13:00 por reparación de tuberías.',
+    category: 'CORTE_SERVICIO',
+    towerLetters: ['B'],
+    publishedDaysAgo: 0,
+    expiresInDays: 3,
+    readers: [],
+  },
+  {
+    title: 'Fumigación de áreas comunes',
+    body: 'El sábado se fumigarán las áreas comunes. Mantén cerradas las ventanas de 7:00 a 10:00.',
+    category: 'AVISO_GENERAL',
+    towerLetters: [],
+    publishedDaysAgo: 20,
+    expiresInDays: -5,
+    readers: [
+      'residente1',
+      'residente2',
+      'residente3',
+      'residente4',
+      'residente5',
+    ],
+  },
+];
+
+async function seedAnnouncementsScenario() {
+  const admin = await prisma.user.findUniqueOrThrow({
+    where: { email: 'admin@condominio.test' },
+  });
+  const now = new Date();
+  const today = todayIso(now);
+
+  for (const scenario of ANNOUNCEMENTS_SCENARIO) {
+    const existing = await prisma.announcement.findFirst({
+      where: { title: scenario.title },
+      select: { id: true },
+    });
+    if (existing) {
+      console.log(`Comunicado "${scenario.title}": ya existe, sin cambios`);
+      continue;
+    }
+
+    const towers = await prisma.tower.findMany({
+      where: { letter: { in: scenario.towerLetters } },
+      select: { id: true },
+    });
+    const residents = await prisma.user.findMany({
+      where: {
+        role: 'RESIDENTE',
+        isActive: true,
+        unitId: { not: null },
+        ...(towers.length > 0 && {
+          unit: { towerId: { in: towers.map((tower) => tower.id) } },
+        }),
+      },
+      select: { id: true, unitId: true, email: true },
+    });
+    const publishedAt = new Date(
+      now.getTime() - scenario.publishedDaysAgo * 24 * HOUR_MS,
+    );
+    const readerEmails = scenario.readers.map(
+      (account) => `${account}@condominio.test`,
+    );
+    const recipients = residents.map((resident) => {
+      const order = readerEmails.indexOf(resident.email);
+      return {
+        userId: resident.id,
+        unitId: resident.unitId as string,
+        readAt:
+          order === -1
+            ? null
+            : new Date(publishedAt.getTime() + (order + 1) * HOUR_MS),
+      };
+    });
+    const readCount = recipients.filter((row) => row.readAt !== null).length;
+
+    await prisma.announcement.create({
+      data: {
+        title: scenario.title,
+        body: scenario.body,
+        category: scenario.category,
+        audience: towers.length > 0 ? 'TORRES' : 'TODOS',
+        publishedAt,
+        expiresOn: toDbDate(addDays(today, scenario.expiresInDays)),
+        createdById: admin.id,
+        towers: { create: towers.map((tower) => ({ towerId: tower.id })) },
+        recipients: { create: recipients },
+      },
+    });
+    console.log(
+      `Comunicado "${scenario.title}": ${readCount} de ${recipients.length} residentes lo leyeron`,
     );
   }
 }

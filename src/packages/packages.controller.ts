@@ -53,7 +53,9 @@ export class PackagesController {
     description: 'Datos inválidos. `field` indica el campo que falló.',
   })
   @ApiNotFoundResponse({ description: 'La unidad no existe.' })
-  @ApiConflictResponse({ description: 'La unidad no tiene residentes registrados.' })
+  @ApiConflictResponse({
+    description: 'La unidad no tiene residentes registrados.',
+  })
   create(
     @CurrentUser() user: User,
     @Body() dto: CreatePackageDto,
@@ -105,7 +107,9 @@ export class MyPackagesController {
    * token; un `unitId` en la consulta se rechaza con 400 (forbidNonWhitelisted).
    */
   @Get()
-  @ApiOperation({ summary: 'Lista los paquetes de la unidad del residente (H20)' })
+  @ApiOperation({
+    summary: 'Lista los paquetes de la unidad del residente (H20)',
+  })
   @ApiOkResponse({ type: MyPackagesListDto })
   @ApiBadRequestResponse({
     description: 'Filtros inválidos (incluye enviar `unitId`).',

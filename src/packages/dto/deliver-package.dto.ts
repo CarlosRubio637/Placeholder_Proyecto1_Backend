@@ -44,7 +44,8 @@ function IsDocumentNumber() {
       validate(value: unknown, args: ValidationArguments) {
         const { pickedUpByDocType } = args.object as DeliverPackageDto;
         if (typeof value !== 'string') return false;
-        if (pickedUpByDocType === DocumentType.DUI) return DUI_REGEX.test(value);
+        if (pickedUpByDocType === DocumentType.DUI)
+          return DUI_REGEX.test(value);
         if (pickedUpByDocType === DocumentType.PASAPORTE)
           return PASSPORT_REGEX.test(value);
         return true;

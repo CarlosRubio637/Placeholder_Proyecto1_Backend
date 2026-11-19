@@ -49,6 +49,7 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
 
   ['post', 'seguridad/paquetes', [S]],
   ['get', 'seguridad/paquetes', [S]],
+  ['post', 'seguridad/paquetes/:id/entrega', [S]],
   ['get', 'paquetes/mios', [R]],
 
   ['post', 'admin/asambleas', [A]],

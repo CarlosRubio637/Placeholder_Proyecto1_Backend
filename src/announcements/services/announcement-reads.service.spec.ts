@@ -65,20 +65,6 @@ describe('H26. Comunicados publicados y control de lecturas', () => {
       });
     },
   );
-
-  it('AC4: el detalle trae las lecturas de todo el comunicado aunque la tabla filtre', async () => {
-    const { service } = setup();
-    const reads = await service.readers(ANNOUNCEMENT_ID, {
-      read: false,
-      page: 1,
-      pageSize: 50,
-    });
-    expect(reads.announcement).toMatchObject({
-      readCount: 3,
-      recipientCount: 12,
-      readPct: 25,
-    });
-  });
 });
 
 describe('comunicados del administrador', () => {

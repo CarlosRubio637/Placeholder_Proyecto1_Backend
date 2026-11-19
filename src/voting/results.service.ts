@@ -34,7 +34,10 @@ export class ResultsService {
         topics: {
           orderBy: { order: 'asc' },
           include: {
-            options: { orderBy: { order: 'asc' }, select: { id: true, text: true } },
+            options: {
+              orderBy: { order: 'asc' },
+              select: { id: true, text: true },
+            },
             result: true,
             _count: { select: { voteParticipations: true } },
           },
@@ -143,7 +146,10 @@ export class ResultsService {
     ]);
 
     return {
-      data: rows.map((row) => ({ unitCode: row.unit.code, votedAt: row.votedAt })),
+      data: rows.map((row) => ({
+        unitCode: row.unit.code,
+        votedAt: row.votedAt,
+      })),
       total,
       page,
       pageSize,
@@ -195,7 +201,9 @@ export class ResultsService {
     });
     return computeTopicResult({
       optionIds,
-      votesByOption: new Map(grouped.map((row) => [row.optionId, row._count._all])),
+      votesByOption: new Map(
+        grouped.map((row) => [row.optionId, row._count._all]),
+      ),
       votedUnits,
       eligibleUnits,
     });

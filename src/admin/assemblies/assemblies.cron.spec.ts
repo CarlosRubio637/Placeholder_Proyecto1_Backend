@@ -31,9 +31,11 @@ function setup() {
       count: vi.fn().mockResolvedValue(4),
     },
     assemblyTopic: {
-      findMany: vi.fn().mockResolvedValue([
-        { id: 't1', options: [{ id: 'o1' }, { id: 'o2' }, { id: 'o3' }] },
-      ]),
+      findMany: vi
+        .fn()
+        .mockResolvedValue([
+          { id: 't1', options: [{ id: 'o1' }, { id: 'o2' }, { id: 'o3' }] },
+        ]),
     },
     voteParticipation: { count: vi.fn().mockResolvedValue(3) },
     ballot: {
@@ -47,7 +49,9 @@ function setup() {
   const prisma = {
     assembly: {
       findMany: vi.fn((args: { where: { status: string } }) =>
-        Promise.resolve(args.where.status === 'PROGRAMADA' ? due.open : due.close),
+        Promise.resolve(
+          args.where.status === 'PROGRAMADA' ? due.open : due.close,
+        ),
       ),
     },
     $transaction: vi.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
@@ -68,7 +72,9 @@ describe('AssembliesCronService: apertura (H22)', () => {
 
     const findArgs = prisma.assembly.findMany.mock.calls[0][0];
     expect(findArgs.where.status).toBe('PROGRAMADA');
-    expect((findArgs.where as unknown as { startsAt: { lte: Date } }).startsAt.lte).toBeInstanceOf(Date);
+    expect(
+      (findArgs.where as unknown as { startsAt: { lte: Date } }).startsAt.lte,
+    ).toBeInstanceOf(Date);
     const claim = tx.assembly.updateMany.mock.calls[0][0];
     expect(claim.where).toEqual({ id: 'as-1', status: 'PROGRAMADA' });
     expect(claim.data.status).toBe('ABIERTA');
@@ -139,7 +145,9 @@ describe('AssembliesCronService: apertura (H22)', () => {
     await expect(cron.handleAssembliesLifecycle()).resolves.toBeUndefined();
     // La segunda búsqueda es la de asambleas por cerrar.
     expect(prisma.assembly.findMany).toHaveBeenCalledTimes(2);
-    expect(prisma.assembly.findMany.mock.calls[1][0].where.status).toBe('ABIERTA');
+    expect(prisma.assembly.findMany.mock.calls[1][0].where.status).toBe(
+      'ABIERTA',
+    );
   });
 
   it('un error al abrir una asamblea no impide abrir las demás', async () => {
@@ -204,7 +212,9 @@ describe('AssembliesCronService: cierre y resultado (H22 + H24)', () => {
       winnerOptionId: 'o1',
     });
     // La hora del cálculo es la misma del cierre.
-    expect(data.computedAt).toEqual(tx.assembly.updateMany.mock.calls[0][0].data.closedAt);
+    expect(data.computedAt).toEqual(
+      tx.assembly.updateMany.mock.calls[0][0].data.closedAt,
+    );
   });
 
   it('si hay empate en el máximo, no hay opción ganadora', async () => {
@@ -218,7 +228,9 @@ describe('AssembliesCronService: cierre y resultado (H22 + H24)', () => {
 
     await cron.handleAssembliesLifecycle();
 
-    expect(tx.topicResult.create.mock.calls[0][0].data.winnerOptionId).toBeNull();
+    expect(
+      tx.topicResult.create.mock.calls[0][0].data.winnerOptionId,
+    ).toBeNull();
   });
 
   it('si otra corrida ya la cerró (count 0), no calcula ni guarda el resultado', async () => {
@@ -248,10 +260,11 @@ describe('AssembliesCronService: cierre y resultado (H22 + H24)', () => {
 
   it('un error al buscar las asambleas por cerrar no rompe la tarea', async () => {
     const { cron, prisma } = setup();
-    prisma.assembly.findMany.mockImplementation((args: { where: { status: string } }) =>
-      args.where.status === 'PROGRAMADA'
-        ? Promise.resolve([])
-        : Promise.reject(new Error('db')),
+    prisma.assembly.findMany.mockImplementation(
+      (args: { where: { status: string } }) =>
+        args.where.status === 'PROGRAMADA'
+          ? Promise.resolve([])
+          : Promise.reject(new Error('db')),
     );
     await expect(cron.handleAssembliesLifecycle()).resolves.toBeUndefined();
   });

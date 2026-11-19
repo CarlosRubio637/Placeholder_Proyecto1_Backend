@@ -122,13 +122,16 @@ describe('VotingService.vote (H23)', () => {
     const sql = strings.join('?');
     expect(sql).toContain('FOR SHARE');
     expect(sql).toContain("status = 'ABIERTA'");
+    // Aunque el cron todavía no la haya cerrado, pasada la hora de cierre no
+    // entra ningún voto.
+    expect(sql).toContain('ends_at > now()');
     expect(values).toEqual(['as-1']);
     expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
       tx.voteParticipation.create.mock.invocationCallOrder[0],
     );
   });
 
-  it('H24: 409 si la asamblea se cerró mientras se votaba, sin guardar nada', async () => {
+  it('H24: 409 si la asamblea se cerró o ya pasó su hora de cierre, sin guardar nada', async () => {
     const { service, tx } = setup();
     tx.$queryRaw.mockResolvedValue([]);
 

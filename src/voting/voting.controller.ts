@@ -8,6 +8,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation } from '@nestjs/swagger';
 import { CurrentUser, Roles } from '@Auth/decorators';
 import type { User } from '@PrismaClient';
 import { CastVoteDto, ClosedAssembliesQueryDto } from './dto/index.js';
@@ -33,16 +34,18 @@ export class VotingController {
    * que "cerradas" no se interprete como un id.
    */
   @Get('cerradas')
+  @ApiOperation({ summary: 'Asambleas cerradas del residente (H24)' })
+  @ApiOkResponse({
+    description:
+      'Asambleas Cerradas, la más reciente primero. 10 por página por defecto.',
+  })
   findClosed(@Query() query: ClosedAssembliesQueryDto) {
     return this.resultsService.findClosed(query);
   }
 
   /** H23: detalle de una asamblea con el estado de voto de la unidad. */
   @Get(':id')
-  findOne(
-    @CurrentUser() user: User,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  findOne(@CurrentUser() user: User, @Param('id', ParseUUIDPipe) id: string) {
     return this.votingService.findOne(user, id);
   }
 

@@ -153,7 +153,10 @@ export class AssembliesCronService {
         select: { id: true },
       });
     } catch (error) {
-      this.logger.error('No se pudieron buscar asambleas por cerrar', error as Error);
+      this.logger.error(
+        'No se pudieron buscar asambleas por cerrar',
+        error as Error,
+      );
       return;
     }
 
@@ -163,7 +166,10 @@ export class AssembliesCronService {
         if (await this.closeAssembly(id)) closed += 1;
       } catch (error) {
         // Un error en una asamblea no debe impedir cerrar las demás.
-        this.logger.error(`No se pudo cerrar la asamblea ${id}`, error as Error);
+        this.logger.error(
+          `No se pudo cerrar la asamblea ${id}`,
+          error as Error,
+        );
       }
     }
     if (closed > 0) this.logger.log(`Asambleas cerradas: ${closed}`);

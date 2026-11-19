@@ -57,7 +57,7 @@ export type IncidentListItem = Prisma.IncidentGetPayload<{
 const DETAIL_INCLUDE = {
   photos: { orderBy: { createdAt: 'asc' }, select: { id: true } },
   unit: { select: { code: true } },
-  assignee: { select: { name: true, specialty: true } },
+  assignee: { select: { id: true, name: true, specialty: true } },
   events: {
     // Del más antiguo al más reciente; el id desempata eventos del mismo instante.
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],

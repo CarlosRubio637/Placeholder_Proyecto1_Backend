@@ -30,6 +30,8 @@ function setup() {
       }),
     },
     ballot: { create: vi.fn().mockResolvedValue({ id: 'ballot-1' }) },
+    // H24: bloqueo compartido sobre la fila de la asamblea (sigue Abierta).
+    $queryRaw: vi.fn().mockResolvedValue([{ id: 'as-1' }]),
   };
   const prisma = {
     assembly: { findMany: vi.fn().mockResolvedValue([]), findFirst: vi.fn() },
@@ -107,6 +109,40 @@ describe('VotingService.vote (H23)', () => {
     await expect(service.vote(resident, 'topic-1', dto)).rejects.toThrow(
       'conexión perdida',
     );
+  });
+
+  it('H24: bloquea la asamblea (FOR SHARE) antes de guardar el voto', async () => {
+    const { service, tx } = setup();
+    await service.vote(resident, 'topic-1', dto);
+
+    const [strings, ...values] = tx.$queryRaw.mock.calls[0] as [
+      TemplateStringsArray,
+      ...unknown[],
+    ];
+    const sql = strings.join('?');
+    expect(sql).toContain('FOR SHARE');
+    expect(sql).toContain("status = 'ABIERTA'");
+    // Aunque el cron todavía no la haya cerrado, pasada la hora de cierre no
+    // entra ningún voto.
+    expect(sql).toContain('ends_at > now()');
+    expect(values).toEqual(['as-1']);
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+      tx.voteParticipation.create.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('H24: 409 si la asamblea se cerró o ya pasó su hora de cierre, sin guardar nada', async () => {
+    const { service, tx } = setup();
+    tx.$queryRaw.mockResolvedValue([]);
+
+    const error = await service
+      .vote(resident, 'topic-1', dto)
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ConflictException);
+    expect((error as Error).message).toBe(VOTING_MESSAGES.notOpen);
+    expect(tx.voteParticipation.create).not.toHaveBeenCalled();
+    expect(tx.ballot.create).not.toHaveBeenCalled();
   });
 
   it('404 si el tema no existe', async () => {

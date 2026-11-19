@@ -21,6 +21,7 @@ export interface DirectorySearchFilter {
 }
 
 const DIRECTORY_SELECT = {
+  id: true,
   email: true,
   unit: { select: { code: true } },
   profile: { select: { fullName: true, phone: true } },
@@ -57,7 +58,7 @@ function searchWhere(filter: DirectorySearchFilter): Prisma.UserWhereInput {
 
 function toRow(record: DirectoryRecord): DirectoryRow {
   if (!record.profile || !record.directoryPreference) {
-    throw new Error(`El residente ${record.email} no tiene perfil visible`);
+    throw new Error(`El residente ${record.id} no tiene perfil o preferencias`);
   }
   return {
     fullName: record.profile.fullName,

@@ -66,6 +66,12 @@ describe('consulta del directorio', () => {
     expect(messages).toEqual(['Ingresa el número de unidad de 3 dígitos.']);
   });
 
+  it('un nombre repetido en la URL da un solo mensaje', async () => {
+    const { fields, messages } = await check({ name: ['gomez', 'diaz'] });
+    expect(fields).toEqual(['name']);
+    expect(messages).toEqual(['Escribe al menos 3 caracteres del nombre.']);
+  });
+
   it('rechaza una torre que no es uuid', async () => {
     const { fields, messages } = await check({
       towerId: 'A',

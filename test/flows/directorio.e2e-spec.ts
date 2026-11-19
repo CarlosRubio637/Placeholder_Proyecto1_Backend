@@ -88,6 +88,7 @@ describe('H29. Búsqueda de contacto de vecinos', () => {
     ]);
     expect({ total, pageSize }).toEqual({ total: 2, pageSize: 20 });
     await expect(search('name=flores')).resolves.toMatchObject({ total: 0 });
+    await expect(search('name=ramos')).resolves.toMatchObject({ total: 0 });
   });
 
   it('AC5: quien oculta su unidad no aparece al buscar esa unidad, aunque sí por nombre', async () => {
@@ -130,6 +131,16 @@ describe('H29. Búsqueda de contacto de vecinos', () => {
       total: 0,
     });
     await expect(search('name=___')).resolves.toMatchObject({ total: 0 });
+  });
+
+  it('AC6: "^^^" no cuenta como 3 letras y responde 400', async () => {
+    const { body } = await api(app, residente5)
+      .get('directorio?name=%5E%5E%5E')
+      .expect(400);
+    expect(body).toMatchObject({
+      field: 'name',
+      message: ['Escribe al menos 3 caracteres del nombre.'],
+    });
   });
 
   it.each(['admin', 'seguridad1'])(

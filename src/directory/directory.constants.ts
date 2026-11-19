@@ -11,8 +11,8 @@ export const DIRECTORY_NAME_MIN = 3;
 export const DIRECTORY_NAME_MAX = 80;
 
 export const DIRECTORY_SEARCH_MESSAGES = {
-  nameShort: 'Escribe al menos 3 caracteres del nombre.',
-  nameLong: 'Escribe como máximo 80 caracteres del nombre.',
+  nameShort: `Escribe al menos ${DIRECTORY_NAME_MIN} caracteres del nombre.`,
+  nameLong: `Escribe como máximo ${DIRECTORY_NAME_MAX} caracteres del nombre.`,
   unitNumber: 'Ingresa el número de unidad de 3 dígitos.',
   towerId: 'Elige una torre válida.',
   criterion: 'Busca por nombre o por torre y número de unidad.',

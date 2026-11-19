@@ -2,7 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { badRequest } from '@Common/validation';
 import type { User } from '@PrismaClient';
 import { toSearchName } from '@Users/services';
-import { DIRECTORY_SEARCH_MESSAGES } from '../directory.constants.js';
+import {
+  DIRECTORY_NAME_MIN,
+  DIRECTORY_SEARCH_MESSAGES,
+} from '../directory.constants.js';
 import {
   DirectoryEntryDto,
   type DirectoryPageDto,
@@ -22,7 +25,11 @@ function criterionOf(query: DirectorySearchQueryDto): Criterion {
     throw badRequest('name', DIRECTORY_SEARCH_MESSAGES.criterion);
   }
   if (query.name !== undefined) {
-    return { searchName: toSearchName(query.name), unit: undefined };
+    const searchName = toSearchName(query.name);
+    if (searchName.length < DIRECTORY_NAME_MIN) {
+      throw badRequest('name', DIRECTORY_SEARCH_MESSAGES.nameShort);
+    }
+    return { searchName, unit: undefined };
   }
   if (query.towerId === undefined || query.unitNumber === undefined) {
     const missing = query.towerId === undefined ? 'towerId' : 'unitNumber';

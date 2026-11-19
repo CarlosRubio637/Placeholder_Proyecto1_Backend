@@ -95,6 +95,19 @@ describe('H29. Búsqueda de contacto de vecinos', () => {
     });
     expect(repository.search).not.toHaveBeenCalled();
   });
+
+  it.each(['^^^', 'a^^', '```'])(
+    'AC6: "%s" queda con menos de 3 letras al normalizarse y responde 400',
+    async (name) => {
+      const { service, repository } = setup();
+      const error = await rejection(service.search(me, query({ name })));
+      expect(error?.getResponse()).toMatchObject({
+        field: 'name',
+        message: ['Escribe al menos 3 caracteres del nombre.'],
+      });
+      expect(repository.search).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe('búsqueda del directorio', () => {

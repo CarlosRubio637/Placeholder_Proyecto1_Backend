@@ -4,11 +4,11 @@ import {
   IsInt,
   IsOptional,
   IsUUID,
+  Length,
   Matches,
   Max,
-  MaxLength,
   Min,
-  MinLength,
+  type ValidationArguments,
 } from 'class-validator';
 import {
   DIRECTORY_MAX_PAGE,
@@ -21,6 +21,14 @@ import {
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
+function nameLengthMessage({ value }: ValidationArguments): string {
+  const tooLong =
+    typeof value === 'string' && value.length > DIRECTORY_NAME_MAX;
+  return tooLong
+    ? DIRECTORY_SEARCH_MESSAGES.nameLong
+    : DIRECTORY_SEARCH_MESSAGES.nameShort;
+}
+
 export class DirectorySearchQueryDto {
   @ApiPropertyOptional({
     minLength: DIRECTORY_NAME_MIN,
@@ -29,11 +37,8 @@ export class DirectorySearchQueryDto {
   })
   @IsOptional()
   @Transform(trim)
-  @MinLength(DIRECTORY_NAME_MIN, {
-    message: DIRECTORY_SEARCH_MESSAGES.nameShort,
-  })
-  @MaxLength(DIRECTORY_NAME_MAX, {
-    message: DIRECTORY_SEARCH_MESSAGES.nameLong,
+  @Length(DIRECTORY_NAME_MIN, DIRECTORY_NAME_MAX, {
+    message: nameLengthMessage,
   })
   name?: string;
 

@@ -355,6 +355,7 @@ export class AnnouncementRepository {
   private async countReads(
     announcementIds: string[],
   ): Promise<Map<string, ReadCounts>> {
+    if (announcementIds.length === 0) return new Map();
     const groups = await this.prisma.announcementRecipient.groupBy({
       by: ['announcementId'],
       where: { announcementId: { in: announcementIds } },

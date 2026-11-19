@@ -21,6 +21,7 @@ export const ANNOUNCEMENT_MESSAGES = {
   towerIdFormat: 'Cada torre debe ser un uuid válido.',
   maxTowers: 'Elige como máximo 3 torres.',
   expiresOnFormat: 'Ingresa una fecha de fin de vigencia válida (AAAA-MM-DD).',
+  notFound: 'El comunicado no existe.',
 } as const;
 
 export function expiryWindowMessage(maxIso: string): string {
@@ -54,7 +55,6 @@ export const PAGE_MESSAGES = {
 
 export const RESIDENT_ANNOUNCEMENT_MESSAGES = {
   tab: 'Elige la pestaña: vigentes o archivados.',
-  notFound: 'El comunicado no existe.',
 } as const;
 
 export const ANNOUNCEMENT_STATUSES = ['VIGENTE', 'ARCHIVADO'] as const;

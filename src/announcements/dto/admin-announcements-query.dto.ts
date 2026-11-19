@@ -12,12 +12,13 @@ import {
 } from '../announcements.constants.js';
 import { PageNumber, PageSize } from './pagination.js';
 
-const BOOLEAN_TEXT: Record<string, boolean> = { true: true, false: false };
+const BOOLEAN_TEXT = new Map<unknown, boolean>([
+  ['true', true],
+  ['false', false],
+]);
 
 function toBoolean({ value }: { value: unknown }): unknown {
-  return typeof value === 'string' && value in BOOLEAN_TEXT
-    ? BOOLEAN_TEXT[value]
-    : value;
+  return BOOLEAN_TEXT.get(value) ?? value;
 }
 
 export class AdminAnnouncementsQueryDto {

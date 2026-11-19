@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { toDbDate, todayIso } from '@Common/time';
 import type { User } from '@PrismaClient';
-import { RESIDENT_ANNOUNCEMENT_MESSAGES } from '../announcements.constants.js';
+import { ANNOUNCEMENT_MESSAGES } from '../announcements.constants.js';
 import {
   ResidentAnnouncementDto,
   ResidentAnnouncementSummaryDto,
@@ -13,7 +13,7 @@ import { AnnouncementRepository } from '../repositories/index.js';
 
 function toHttpError(error: unknown): unknown {
   if (error instanceof AnnouncementNotFoundError) {
-    return new NotFoundException(RESIDENT_ANNOUNCEMENT_MESSAGES.notFound);
+    return new NotFoundException(ANNOUNCEMENT_MESSAGES.notFound);
   }
   return error;
 }

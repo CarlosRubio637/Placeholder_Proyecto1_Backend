@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { toDbDate, todayIso } from '@Common/time';
-import { RESIDENT_ANNOUNCEMENT_MESSAGES } from '../announcements.constants.js';
+import { ANNOUNCEMENT_MESSAGES } from '../announcements.constants.js';
 import {
   AdminAnnouncementDetailDto,
   AdminAnnouncementSummaryDto,
@@ -12,6 +12,13 @@ import {
 } from '../dto/index.js';
 import { AnnouncementNotFoundError } from '../errors/index.js';
 import { AnnouncementRepository } from '../repositories/index.js';
+
+function toHttpError(error: unknown): unknown {
+  if (error instanceof AnnouncementNotFoundError) {
+    return new NotFoundException(ANNOUNCEMENT_MESSAGES.notFound);
+  }
+  return error;
+}
 
 @Injectable()
 export class AnnouncementReadsService {
@@ -44,29 +51,26 @@ export class AnnouncementReadsService {
     now = new Date(),
   ): Promise<AnnouncementReadsPageDto> {
     const { page, pageSize } = query;
-    try {
-      const reads = await this.repository.findForReads(announcementId, {
+    const reads = await this.repository
+      .findForReads(announcementId, {
         read: query.read,
         skip: (page - 1) * pageSize,
         take: pageSize,
+      })
+      .catch((error: unknown) => {
+        throw toHttpError(error);
       });
-      return {
-        announcement: AdminAnnouncementDetailDto.fromDetail(
-          reads.announcement,
-          todayIso(now),
-        ),
-        data: reads.recipients.map((row) =>
-          AnnouncementRecipientDto.fromRow(row),
-        ),
-        total: reads.total,
-        page,
-        pageSize,
-      };
-    } catch (error) {
-      if (error instanceof AnnouncementNotFoundError) {
-        throw new NotFoundException(RESIDENT_ANNOUNCEMENT_MESSAGES.notFound);
-      }
-      throw error;
-    }
+    return {
+      announcement: AdminAnnouncementDetailDto.fromDetail(
+        reads.announcement,
+        todayIso(now),
+      ),
+      data: reads.recipients.map((row) =>
+        AnnouncementRecipientDto.fromRow(row),
+      ),
+      total: reads.total,
+      page,
+      pageSize,
+    };
   }
 }

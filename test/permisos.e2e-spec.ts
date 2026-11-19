@@ -59,6 +59,9 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'asambleas/activas', [R]],
   ['get', 'asambleas/:id', [R]],
   ['post', 'asambleas/temas/:temaId/votos', [R]],
+  ['get', 'asambleas/cerradas', [R]],
+  ['get', 'asambleas/:id/resultado', [A, R]],
+  ['get', 'asambleas/temas/:temaId/participacion', [A, R]],
 
   ['get', 'cuotas/generaciones/vista-previa', [A]],
   ['post', 'cuotas/generaciones', [A]],

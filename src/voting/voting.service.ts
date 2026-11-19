@@ -66,7 +66,10 @@ export class VotingService {
     for (const row of voted) {
       const assemblyId = topicAssembly.get(row.topicId);
       if (!assemblyId) continue;
-      votedByAssembly.set(assemblyId, (votedByAssembly.get(assemblyId) ?? 0) + 1);
+      votedByAssembly.set(
+        assemblyId,
+        (votedByAssembly.get(assemblyId) ?? 0) + 1,
+      );
     }
 
     return {
@@ -167,7 +170,8 @@ export class VotingService {
     if (!topic) throw new NotFoundException(VOTING_MESSAGES.topicNotFound);
 
     const belongs = topic.options.some((option) => option.id === dto.optionId);
-    if (!belongs) throw badRequest('optionId', VOTING_MESSAGES.optionNotInTopic);
+    if (!belongs)
+      throw badRequest('optionId', VOTING_MESSAGES.optionNotInTopic);
 
     if (topic.assembly.status !== 'ABIERTA') {
       throw new ConflictException(VOTING_MESSAGES.notOpen);
@@ -178,6 +182,20 @@ export class VotingService {
 
     try {
       const participation = await this.prisma.$transaction(async (tx) => {
+        // H24: se vuelve a comprobar que la asamblea siga Abierta DENTRO de la
+        // transacción, con un bloqueo compartido sobre su fila. Si el cierre
+        // (H22/H24) está en curso, este voto espera a que termine y luego ve
+        // la asamblea Cerrada: ningún voto entra después del cierre.
+        const open = await tx.$queryRaw<{ id: string }[]>`
+          SELECT id FROM assemblies
+          WHERE id = ${topic.assembly.id}::uuid
+            AND status = 'ABIERTA'
+            AND ends_at > now()
+          FOR SHARE`;
+        if (open.length === 0) {
+          throw new ConflictException(VOTING_MESSAGES.notOpen);
+        }
+
         // Inserta PRIMERO la participación: la restricción única
         // (topicId, unitId) deja pasar solo el primer voto de la unidad.
         const created = await tx.voteParticipation.create({

@@ -461,7 +461,7 @@ type AnnouncementScenario = {
   readers: string[] | typeof EVERY_RECIPIENT;
 };
 
-const HOUR_MS = 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
 const EVERY_RECIPIENT = 'todos';
 
 const ANNOUNCEMENTS_SCENARIO: AnnouncementScenario[] = [
@@ -526,28 +526,46 @@ async function seedAnnouncementsScenario() {
       continue;
     }
 
+    const forTowers = scenario.towerLetters.length > 0;
     const towers = await prisma.tower.findMany({
       where: { letter: { in: scenario.towerLetters } },
       select: { id: true },
     });
+    if (towers.length !== scenario.towerLetters.length) {
+      throw new Error(
+        `Comunicado "${scenario.title}": torres ${scenario.towerLetters.join(', ')}, solo existen ${towers.length}`,
+      );
+    }
     const residents = await prisma.user.findMany({
       where: {
         role: 'RESIDENTE',
         isActive: true,
         unitId: { not: null },
-        ...(towers.length > 0 && {
+        ...(forTowers && {
           unit: { towerId: { in: towers.map((tower) => tower.id) } },
         }),
       },
       select: { id: true, unitId: true, email: true },
     });
-    const publishedAt = new Date(
-      now.getTime() - scenario.publishedDaysAgo * 24 * HOUR_MS,
-    );
+    const residentEmails = residents.map((resident) => resident.email);
     const readerEmails =
       scenario.readers === EVERY_RECIPIENT
-        ? residents.map((resident) => resident.email)
+        ? residentEmails
         : scenario.readers.map((account) => `${account}@condominio.test`);
+    const missingReader = readerEmails.find(
+      (email) => !residentEmails.includes(email),
+    );
+    if (missingReader) {
+      throw new Error(
+        `Comunicado "${scenario.title}": ${missingReader} no es destinatario`,
+      );
+    }
+
+    const publishedAt = new Date(
+      now.getTime() - scenario.publishedDaysAgo * DAY_MS,
+    );
+    const readStep =
+      (now.getTime() - publishedAt.getTime()) / (readerEmails.length + 1);
     const recipients = residents.map((resident) => {
       const order = readerEmails.indexOf(resident.email);
       return {
@@ -556,17 +574,16 @@ async function seedAnnouncementsScenario() {
         readAt:
           order === -1
             ? null
-            : new Date(publishedAt.getTime() + (order + 1) * HOUR_MS),
+            : new Date(publishedAt.getTime() + (order + 1) * readStep),
       };
     });
-    const readCount = recipients.filter((row) => row.readAt !== null).length;
 
     await prisma.announcement.create({
       data: {
         title: scenario.title,
         body: scenario.body,
         category: scenario.category,
-        audience: towers.length > 0 ? 'TORRES' : 'TODOS',
+        audience: forTowers ? 'TORRES' : 'TODOS',
         publishedAt,
         expiresOn: toDbDate(addDays(today, scenario.expiresInDays)),
         createdById: admin.id,
@@ -575,7 +592,7 @@ async function seedAnnouncementsScenario() {
       },
     });
     console.log(
-      `Comunicado "${scenario.title}": ${readCount} de ${recipients.length} residentes lo leyeron`,
+      `Comunicado "${scenario.title}": ${readerEmails.length} de ${recipients.length} residentes lo leyeron`,
     );
   }
 }

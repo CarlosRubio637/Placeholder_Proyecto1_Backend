@@ -6,6 +6,7 @@ import {
   SourceModule,
   RecipientType,
 } from '@Notifications';
+import { computeTopicResult } from '../../voting/results.utils.js';
 
 /** Datos que necesita el aviso de apertura. */
 interface OpenedAssembly {
@@ -145,18 +146,102 @@ export class AssembliesCronService {
   // Abierta -> Cerrada
   // -------------------------------------------------------------------------
   private async closeDueAssemblies(): Promise<void> {
+    let due: { id: string }[];
     try {
-      // Una sola sentencia condicionada por estado: es idempotente.
-      const result = await this.prisma.assembly.updateMany({
+      due = await this.prisma.assembly.findMany({
         where: { status: 'ABIERTA', endsAt: { lte: new Date() } },
-        data: { status: 'CERRADA', closedAt: new Date() },
+        select: { id: true },
       });
-      if (result.count > 0) {
-        this.logger.log(`Asambleas cerradas: ${result.count}`);
-      }
     } catch (error) {
-      this.logger.error('No se pudieron cerrar las asambleas', error as Error);
+      this.logger.error(
+        'No se pudieron buscar asambleas por cerrar',
+        error as Error,
+      );
+      return;
     }
+
+    let closed = 0;
+    for (const { id } of due) {
+      try {
+        if (await this.closeAssembly(id)) closed += 1;
+      } catch (error) {
+        // Un error en una asamblea no debe impedir cerrar las demás.
+        this.logger.error(
+          `No se pudo cerrar la asamblea ${id}`,
+          error as Error,
+        );
+      }
+    }
+    if (closed > 0) this.logger.log(`Asambleas cerradas: ${closed}`);
+  }
+
+  /**
+   * H24: cierra la asamblea y guarda el resultado de cada tema en UNA
+   * transacción. El cambio está condicionado por `status = ABIERTA`, así que
+   * si dos corridas coinciden solo una calcula el resultado.
+   *
+   * El UPDATE bloquea la fila de la asamblea hasta el commit. Cada voto (H23)
+   * toma un bloqueo compartido sobre esa misma fila dentro de su transacción:
+   * los votos en curso terminan antes de que se cuente, y los que lleguen
+   * después esperan y ya ven la asamblea Cerrada (409). Así ningún voto entra
+   * después del cierre ni queda fuera del conteo.
+   */
+  private async closeAssembly(id: string): Promise<boolean> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const now = new Date();
+        const claimed = await tx.assembly.updateMany({
+          where: { id, status: 'ABIERTA' },
+          data: { status: 'CERRADA', closedAt: now },
+        });
+        if (claimed.count === 0) return false;
+
+        const eligibleUnits = await tx.assemblyEligibleUnit.count({
+          where: { assemblyId: id },
+        });
+        const topics = await tx.assemblyTopic.findMany({
+          where: { assemblyId: id },
+          orderBy: { order: 'asc' },
+          select: {
+            id: true,
+            options: { orderBy: { order: 'asc' }, select: { id: true } },
+          },
+        });
+
+        for (const topic of topics) {
+          const votedUnits = await tx.voteParticipation.count({
+            where: { topicId: topic.id },
+          });
+          const grouped = await tx.ballot.groupBy({
+            by: ['optionId'],
+            where: { topicId: topic.id },
+            _count: { _all: true },
+          });
+          const result = computeTopicResult({
+            optionIds: topic.options.map((option) => option.id),
+            votesByOption: new Map(
+              grouped.map((row) => [row.optionId, row._count._all]),
+            ),
+            votedUnits,
+            eligibleUnits,
+          });
+          await tx.topicResult.create({
+            data: {
+              topicId: topic.id,
+              eligibleUnits: result.eligibleUnits,
+              votedUnits: result.votedUnits,
+              totalVotes: result.totalVotes,
+              optionCounts: result.optionCounts.map((item) => ({ ...item })),
+              winnerOptionId: result.winnerOptionId,
+              computedAt: now,
+            },
+          });
+        }
+        return true;
+      },
+      // Una asamblea tiene hasta 10 temas; el margen evita cortes en máquinas lentas.
+      { timeout: 20_000 },
+    );
   }
 
   private truncate(text: string, max: number): string {

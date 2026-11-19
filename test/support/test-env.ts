@@ -21,6 +21,8 @@ function buildTestEnv(): Record<string, string> {
   return {
     ...fromFile,
     NODE_ENV: 'test',
+    // La pasarela simulada de H1 espera 2 s; en las pruebas no hace falta.
+    PAYMENT_GATEWAY_DELAY_MS: '0',
     DATABASE_URL: url.toString(),
     UPLOADS_DIR: join(tmpdir(), 'si_be_test_uploads'),
   };

@@ -85,6 +85,10 @@ model User {
   visitEntries          Visit[]                 @relation("VisitEntryBy")
   /// Salidas de visitantes que registró como seguridad (H17).
   visitExits            Visit[]                 @relation("VisitExitBy")
+  /// Pagos de cuotas que hizo (H1).
+  payments              Payment[]
+  /// Códigos de registro de unidades que regeneró (H2).
+  regeneratedUnitCodes  Unit[]                  @relation("UnitRegistrationCodeUpdatedBy")
 
   @@index([unitId])
   @@map("users")
@@ -148,13 +152,17 @@ model Unit {
   tower   Tower  @relation(fields: [towerId], references: [id])
 
   /// Número dentro de la torre: piso + posición, "101".."404".
-  number           String   @db.Char(3)
+  number                      String    @db.Char(3)
   /// Código visible de la unidad, "A-101".
-  code             String   @unique @db.VarChar(5)
+  code                        String    @unique @db.VarChar(5)
   /// Código de 8 caracteres que la administración entrega al residente para
   /// registrarse (H38). Sin caracteres ambiguos (I, L, O, 0, 1).
-  registrationCode String   @unique @map("registration_code") @db.Char(8)
-  createdAt        DateTime @default(now()) @map("created_at")
+  registrationCode            String    @unique @map("registration_code") @db.Char(8)
+  /// Última regeneración del código de registro (H2) y quién la hizo.
+  registrationCodeUpdatedAt   DateTime? @map("registration_code_updated_at")
+  registrationCodeUpdatedById String?   @map("registration_code_updated_by_id") @db.Uuid
+  registrationCodeUpdatedBy   User?     @relation("UnitRegistrationCodeUpdatedBy", fields: [registrationCodeUpdatedById], references: [id], onDelete: SetNull)
+  createdAt                   DateTime  @default(now()) @map("created_at")
 
   /// Cuentas de residentes de la unidad (H38), máximo 4.
   residents              User[]
@@ -171,6 +179,8 @@ model Unit {
   voteParticipations     VoteParticipation[]
   /// Visitas con destino a la unidad (H14-H18).
   visits                 Visit[]
+  /// Pagos de cuotas de la unidad (H1).
+  payments               Payment[]
 
   @@unique([towerId, number])
   @@map("units")
@@ -659,6 +669,9 @@ model Fee {
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
 
+  /// Intentos de pago (H1); solo uno puede estar APROBADO.
+  payments Payment[]
+
   @@unique([unitId, period])
   @@map("fees")
 }
@@ -882,4 +895,40 @@ model TopicResult {
   computedAt     DateTime      @map("computed_at")
 
   @@map("topic_results")
+}
+
+/// Resultado de un intento de pago (H1).
+enum PaymentStatus {
+  APROBADO
+  RECHAZADO
+}
+
+/// Intento de pago de una cuota con la pasarela simulada (H1). Es un registro
+/// contable: no se borra. Solo guarda los últimos 4 dígitos de la tarjeta.
+model Payment {
+  id      String @id @default(uuid()) @db.Uuid
+  feeId   String @map("fee_id") @db.Uuid
+  fee     Fee    @relation(fields: [feeId], references: [id], onDelete: Restrict)
+  unitId  String @map("unit_id") @db.Uuid
+  unit    Unit   @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  /// Residente que pagó.
+  payerId String @map("payer_id") @db.Uuid
+  payer   User   @relation(fields: [payerId], references: [id], onDelete: Restrict)
+
+  amount            Decimal       @db.Decimal(10, 2)
+  status            PaymentStatus
+  /// Máximo 100 caracteres; solo en rechazados.
+  failureReason     String?       @map("failure_reason") @db.VarChar(100)
+  /// TX-AAAAMMDD-NNNNNN, único.
+  transactionNumber String        @unique @map("transaction_number") @db.VarChar(18)
+  cardLast4         String        @map("card_last4") @db.Char(4)
+  holderName        String        @map("holder_name") @db.VarChar(60)
+  /// Evita cobros repetidos por doble envío.
+  idempotencyKey    String        @unique @map("idempotency_key") @db.Uuid
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([feeId, createdAt])
+  @@index([unitId])
+  @@map("payments")
 }

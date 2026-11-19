@@ -28,12 +28,13 @@ import {
   SearchVisitsQueryDto,
   SecurityVisitListDto,
   VisitEntryDto,
+  VisitExitDto,
   VisitRequestCreatedDto,
   VisitRequestListDto,
 } from './dto/index.js';
 import { SecurityVisitsService } from './security-visits.service.js';
 
-/** Portería: entradas de visitantes (H16). Solo el Personal de seguridad. */
+/** Portería: entradas (H16) y salidas (H17) de visitantes. Solo el Personal de seguridad. */
 @ApiTags('visitas')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Token ausente, inválido o expirado.' })
@@ -95,5 +96,21 @@ export class SecurityVisitsController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<VisitEntryDto> {
     return this.visits.registerEntry(user, id);
+  }
+
+  @Post(':id/salida')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Registra la salida de un visitante (H17)' })
+  @ApiOkResponse({ type: VisitExitDto })
+  @ApiNotFoundResponse({ description: 'La visita no existe.' })
+  @ApiConflictResponse({
+    description:
+      'La visita no está Dentro: "Este visitante no tiene una entrada activa."',
+  })
+  registerExit(
+    @CurrentUser() user: User,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<VisitExitDto> {
+    return this.visits.registerExit(user, id);
   }
 }

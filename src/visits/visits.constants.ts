@@ -61,3 +61,10 @@ export const ENTRY_MESSAGES = {
   wrongStatus: (label: string) =>
     `No se puede registrar la entrada: la visita está ${label}.`,
 } as const;
+
+/** Mensajes de la salida de visitantes (H17). */
+export const EXIT_MESSAGES = {
+  visitNotFound: 'La visita no existe.',
+  /** 409 cuando la visita no está Dentro. */
+  notInside: 'Este visitante no tiene una entrada activa.',
+} as const;

@@ -458,10 +458,11 @@ type AnnouncementScenario = {
   towerLetters: string[];
   publishedDaysAgo: number;
   expiresInDays: number;
-  readers: string[];
+  readers: string[] | typeof EVERY_RECIPIENT;
 };
 
 const HOUR_MS = 60 * 60 * 1000;
+const EVERY_RECIPIENT = 'todos';
 
 const ANNOUNCEMENTS_SCENARIO: AnnouncementScenario[] = [
   {
@@ -496,6 +497,15 @@ const ANNOUNCEMENTS_SCENARIO: AnnouncementScenario[] = [
       'residente4',
       'residente5',
     ],
+  },
+  {
+    title: 'Corte de energía en Torre C',
+    body: 'El viernes no habrá energía en la Torre C de 14:00 a 16:00 por cambio de transformador.',
+    category: 'CORTE_SERVICIO',
+    towerLetters: ['C'],
+    publishedDaysAgo: 1,
+    expiresInDays: 5,
+    readers: EVERY_RECIPIENT,
   },
 ];
 
@@ -534,9 +544,10 @@ async function seedAnnouncementsScenario() {
     const publishedAt = new Date(
       now.getTime() - scenario.publishedDaysAgo * 24 * HOUR_MS,
     );
-    const readerEmails = scenario.readers.map(
-      (account) => `${account}@condominio.test`,
-    );
+    const readerEmails =
+      scenario.readers === EVERY_RECIPIENT
+        ? residents.map((resident) => resident.email)
+        : scenario.readers.map((account) => `${account}@condominio.test`);
     const recipients = residents.map((resident) => {
       const order = readerEmails.indexOf(resident.email);
       return {

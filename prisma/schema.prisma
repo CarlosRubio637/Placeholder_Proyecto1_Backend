@@ -85,6 +85,7 @@ model User {
   visitEntries          Visit[]                 @relation("VisitEntryBy")
   /// Salidas de visitantes que registró como seguridad (H17).
   visitExits            Visit[]                 @relation("VisitExitBy")
+  visitsCancelled       Visit[]                 @relation("VisitCancelledBy")
 
   @@index([unitId])
   @@map("users")
@@ -851,7 +852,10 @@ model Visit {
   exitBy    User?     @relation("VisitExitBy", fields: [exitById], references: [id])
 
   /// Momento de la cancelación por el residente (H15).
-  cancelledAt DateTime? @map("cancelled_at")
+  cancelledAt   DateTime? @map("cancelled_at")
+  /// Residente de la unidad que la canceló (H15).
+  cancelledById String?   @map("cancelled_by_id") @db.Uuid
+  cancelledBy   User?     @relation("VisitCancelledBy", fields: [cancelledById], references: [id])
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

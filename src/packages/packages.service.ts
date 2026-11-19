@@ -28,6 +28,7 @@ import {
   type MyPackageRow,
   type PackageRow,
 } from './dto/index.js';
+import { normalizeDocument } from '../visits/visits.utils.js';
 import { daysWaiting, docLast4 } from './days-waiting.js';
 import {
   dayKey,
@@ -262,7 +263,11 @@ export class PackagesService {
         deliveredById: agent.id,
         pickedUpByName: dto.pickedUpByName,
         pickedUpByDocType: dto.pickedUpByDocType,
-        pickedUpByDocNumber: dto.pickedUpByDocNumber,
+        // Igual que H14 y H16: el pasaporte se guarda en mayúsculas.
+        pickedUpByDocNumber: normalizeDocument(
+          dto.pickedUpByDocType,
+          dto.pickedUpByDocNumber,
+        ),
       },
     });
 
@@ -275,8 +280,9 @@ export class PackagesService {
       if (!existing) {
         throw new NotFoundException(DELIVERY_MESSAGES.notFound);
       }
+      // La card pide solo la fecha: "Este paquete ya fue entregado el <fecha> a <nombre>."
       const when = existing.deliveredAt
-        ? `${formatDate(existing.deliveredAt)} ${formatTime(existing.deliveredAt)}`
+        ? formatDate(existing.deliveredAt)
         : 'una fecha anterior';
       throw new ConflictException(
         DELIVERY_MESSAGES.alreadyDelivered(

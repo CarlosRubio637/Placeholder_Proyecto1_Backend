@@ -8,8 +8,8 @@ import {
   resetData,
 } from '../support/app.js';
 
-/** Flujo H19 → H30 → H31 → H20: un paquete llega a portería. */
-describe('Flujo de paquetería (H19, H30, H31, H20)', () => {
+/** Flujo H19 → H30 → H31 → H20 → H21: un paquete llega a portería y se entrega. */
+describe('Flujo de paquetería (H19, H30, H31, H20, H21)', () => {
   let app: INestApplication;
   let seguridad: string;
   let admin: string;
@@ -132,5 +132,180 @@ describe('Flujo de paquetería (H19, H30, H31, H20)', () => {
       .expect(200);
     expect(body.total).toBe(1);
     expect(body.data[0].code).toBe(code);
+  });
+
+  describe('H21: entrega en portería', () => {
+    const MISSING_ID = '3f2b1c9e-8a4d-4e6f-9b1a-7c5d2e8f0a11';
+    const pickup = {
+      pickedUpByName: 'Ana María López',
+      pickedUpByDocType: 'DUI',
+      pickedUpByDocNumber: '01234567-8',
+    };
+    let packageId: string;
+
+    const deliver = (id: string, change: object = {}, token = seguridad) =>
+      api(app, token)
+        .post(`seguridad/paquetes/${id}/entrega`)
+        .send({ ...pickup, ...change });
+
+    beforeAll(async () => {
+      const pkg = await db(app).package.findUniqueOrThrow({ where: { code } });
+      packageId = pkg.id;
+    });
+
+    it.each<[string, object, string]>([
+      [
+        'un nombre de menos de 3 letras',
+        { pickedUpByName: 'Al' },
+        'pickedUpByName',
+      ],
+      ['un nombre vacío', { pickedUpByName: '' }, 'pickedUpByName'],
+      [
+        'un nombre con números',
+        { pickedUpByName: 'Ana 123' },
+        'pickedUpByName',
+      ],
+      [
+        'un DUI mal formado',
+        { pickedUpByDocNumber: '0123456-78' },
+        'pickedUpByDocNumber',
+      ],
+      [
+        'un documento vacío',
+        { pickedUpByDocNumber: '' },
+        'pickedUpByDocNumber',
+      ],
+      [
+        'un pasaporte inválido',
+        { pickedUpByDocType: 'PASAPORTE', pickedUpByDocNumber: 'A1-23' },
+        'pickedUpByDocNumber',
+      ],
+      [
+        'un tipo de documento inválido',
+        { pickedUpByDocType: 'LICENCIA' },
+        'pickedUpByDocType',
+      ],
+    ])('rechaza %s con 400 y el campo', async (_caso, change, field) => {
+      const { body } = await deliver(packageId, change).expect(400);
+      expect(body).toMatchObject({ statusCode: 400, field });
+      expect(body.message).toEqual([expect.any(String)]);
+    });
+
+    it('ningún rechazo cambió el paquete', async () => {
+      const pkg = await db(app).package.findUniqueOrThrow({
+        where: { id: packageId },
+      });
+      expect(pkg).toMatchObject({
+        status: 'PENDIENTE_ENTREGA',
+        deliveredAt: null,
+        pickedUpByName: null,
+      });
+    });
+
+    it('un paquete inexistente responde 404', async () => {
+      const { body } = await deliver(MISSING_ID).expect(404);
+      expect(body.message).toBe('El paquete no existe.');
+    });
+
+    it('entrega el paquete y guarda quién lo recogió y qué agente lo entregó', async () => {
+      const { body } = await deliver(packageId).expect(200);
+      expect(body).toMatchObject({
+        id: packageId,
+        code,
+        status: 'ENTREGADO',
+        pickedUpByName: 'Ana María López',
+      });
+
+      const agent = await db(app).user.findUniqueOrThrow({
+        where: { email: 'seguridad1@condominio.test' },
+      });
+      const pkg = await db(app).package.findUniqueOrThrow({
+        where: { id: packageId },
+      });
+      expect(pkg).toMatchObject({
+        status: 'ENTREGADO',
+        deliveredById: agent.id,
+        pickedUpByName: 'Ana María López',
+        pickedUpByDocType: 'DUI',
+        pickedUpByDocNumber: '01234567-8',
+      });
+      expect(pkg.deliveredAt).toBeInstanceOf(Date);
+    });
+
+    it('avisa "Paquete entregado" solo a los residentes de la unidad', async () => {
+      const notifications = await inbox(app, residente4);
+      const delivered = notifications.filter(
+        (item) => item.title === 'Paquete entregado',
+      );
+      expect(delivered).toHaveLength(1);
+      expect(delivered[0]).toMatchObject({
+        sourceModule: 'PAQUETERIA',
+        referenceId: packageId,
+      });
+      expect(delivered[0].message).toMatch(
+        new RegExp(
+          `^El paquete ${code} se entregó a Ana María López el \\d{2}/\\d{2}/\\d{4} a las \\d{2}:\\d{2}\\. Si no fuiste tú ni alguien de tu confianza, avisa a portería\\.$`,
+        ),
+      );
+
+      await expect(inbox(app, residente3)).resolves.toEqual([]);
+    });
+
+    it('entregarlo otra vez responde 409 con la fecha y quién lo recogió', async () => {
+      const before = await db(app).package.findUniqueOrThrow({
+        where: { id: packageId },
+      });
+
+      const { body } = await deliver(packageId, {
+        pickedUpByName: 'Otra Persona',
+      }).expect(409);
+      expect(body.message).toMatch(
+        /^Este paquete ya fue entregado el \d{2}\/\d{2}\/\d{4} a Ana María López\.$/,
+      );
+
+      const after = await db(app).package.findUniqueOrThrow({
+        where: { id: packageId },
+      });
+      expect(after).toEqual(before);
+    });
+
+    it('dos agentes a la vez: solo una entrega queda (200 y 409)', async () => {
+      const created = await send(seguridad, {
+        trackingNumber: '9911-0001',
+      }).expect(201);
+      const id = created.body.id as string;
+      const seguridad2 = await login(app, 'seguridad2');
+
+      const results = await Promise.all([
+        deliver(id, { pickedUpByName: 'Primera Persona' }, seguridad),
+        deliver(id, { pickedUpByName: 'Segunda Persona' }, seguridad2),
+      ]);
+
+      expect(
+        results.map((result) => result.status).sort((a, b) => a - b),
+      ).toEqual([200, 409]);
+      const winner = results.find((result) => result.status === 200);
+      const pkg = await db(app).package.findUniqueOrThrow({ where: { id } });
+      expect(pkg.status).toBe('ENTREGADO');
+      expect(pkg.pickedUpByName).toBe(winner?.body.pickedUpByName);
+    });
+
+    it('guarda el pasaporte en mayúsculas, como en visitas', async () => {
+      const created = await send(seguridad, {
+        trackingNumber: '9911-0002',
+      }).expect(201);
+      const id = created.body.id as string;
+
+      await deliver(id, {
+        pickedUpByDocType: 'PASAPORTE',
+        pickedUpByDocNumber: 'ab123456',
+      }).expect(200);
+
+      const pkg = await db(app).package.findUniqueOrThrow({ where: { id } });
+      expect(pkg).toMatchObject({
+        pickedUpByDocType: 'PASAPORTE',
+        pickedUpByDocNumber: 'AB123456',
+      });
+    });
   });
 });

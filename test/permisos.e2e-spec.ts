@@ -25,7 +25,7 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['post', 'auth/logout', PUBLIC],
   ['get', 'auth/me', ALL],
 
-  ['get', 'torres', [S, A]],
+  ['get', 'torres', [R, S, A]],
   ['get', 'unidades', [S, A]],
 
   ['get', 'notificaciones', ALL],
@@ -71,6 +71,7 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
 
   ['get', 'perfil', [R]],
   ['put', 'perfil', [R]],
+  ['get', 'directorio', [R]],
 
   ['post', 'visitas', [R]],
 

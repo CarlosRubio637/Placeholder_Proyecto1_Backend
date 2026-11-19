@@ -83,6 +83,7 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
 
   ['get', 'admin/reportes/morosidad', [A]],
   ['get', 'admin/reportes/incidencias', [A]],
+  ['get', 'admin/reportes/participacion', [A]],
 ];
 
 const concrete = (path: string) => path.replace(/:[A-Za-z]+/g, ID);

@@ -106,6 +106,7 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'admin/reportes/incidencias', [A]],
   ['get', 'admin/reportes/areas', [A]],
   ['get', 'admin/reportes/participacion', [A]],
+  ['get', 'admin/reportes/resumen', [A]],
 
   ['get', 'morosidad', [A]],
 ];

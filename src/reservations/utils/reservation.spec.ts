@@ -1,4 +1,10 @@
-import { buildAvailability, findSlot, reservationCode, slotKey } from './reservation.js';
+import {
+  buildAvailability,
+  canCancelAt,
+  findSlot,
+  reservationCode,
+  slotKey,
+} from './reservation.js';
 
 describe('reservationCode', () => {
   it('arma RS-AAAAMMDD-NNNN con el consecutivo en 4 cifras', () => {
@@ -16,7 +22,10 @@ describe('findSlot', () => {
   const schedule = { openTime: '08:00', closeTime: '12:00', slotMinutes: 120 };
 
   it('devuelve la franja que empieza a esa hora', () => {
-    expect(findSlot(schedule, '10:00')).toEqual({ startTime: '10:00', endTime: '12:00' });
+    expect(findSlot(schedule, '10:00')).toEqual({
+      startTime: '10:00',
+      endTime: '12:00',
+    });
   });
 
   it('rechaza una hora que no es inicio de franja', () => {
@@ -65,7 +74,10 @@ describe('buildAvailability', () => {
       unitId: null,
       reservations: [{ id: 'r1', startTime: '08:00', unitId: 'mine' }],
     });
-    expect(slots[0]).toMatchObject({ status: 'RESERVADO', ownReservationId: null });
+    expect(slots[0]).toMatchObject({
+      status: 'RESERVADO',
+      ownReservationId: null,
+    });
   });
 
   it('un día bloqueado queda en mantenimiento', () => {
@@ -83,10 +95,23 @@ describe('buildAvailability', () => {
       reservations: [{ id: 'r1', startTime: '08:00', unitId: 'other' }],
     });
     expect(statuses(slots)).toEqual(['PASADO', 'PASADO', 'DISPONIBLE']);
-    expect(statuses(buildAvailability({ ...base, currentTime: '08:30', blocked: true }))).toEqual([
-      'PASADO',
-      'MANTENIMIENTO',
-      'MANTENIMIENTO',
-    ]);
+    expect(
+      statuses(
+        buildAvailability({ ...base, currentTime: '08:30', blocked: true }),
+      ),
+    ).toEqual(['PASADO', 'MANTENIMIENTO', 'MANTENIMIENTO']);
+  });
+});
+
+describe('canCancelAt', () => {
+  const start = new Date('2026-11-10T16:00:00.000Z');
+  it('permite cancelar con 24 horas exactas o más', () => {
+    expect(canCancelAt(start, new Date('2026-11-09T16:00:00.000Z'))).toBe(true);
+    expect(canCancelAt(start, new Date('2026-11-08T10:00:00.000Z'))).toBe(true);
+  });
+  it('rechaza con menos de 24 horas', () => {
+    expect(canCancelAt(start, new Date('2026-11-09T16:00:01.000Z'))).toBe(
+      false,
+    );
   });
 });

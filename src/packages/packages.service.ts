@@ -15,6 +15,9 @@ import { PackageStatus, Role, type User } from '@PrismaClient';
 import {
   CreatePackageDto,
   DEFAULT_PAGE_SIZE,
+  DELIVERY_MESSAGES,
+  DeliverPackageDto,
+  DeliveredPackageDto,
   ListPackagesQueryDto,
   MY_PACKAGES_PAGE_SIZE,
   MyPackageDto,
@@ -25,6 +28,7 @@ import {
   type MyPackageRow,
   type PackageRow,
 } from './dto/index.js';
+import { normalizeDocument } from '../visits/visits.utils.js';
 import { daysWaiting, docLast4 } from './days-waiting.js';
 import {
   dayKey,
@@ -233,6 +237,118 @@ export class PackagesService {
       pickedUpByName: row.pickedUpByName,
       pickedUpByDocLast4: docLast4(row.pickedUpByDocNumber),
     };
+  }
+
+  /**
+   * Registra la entrega de un paquete (H21). La actualización se condiciona
+   * por status = PENDIENTE_ENTREGA en una sola sentencia: si dos agentes
+   * entregan el mismo paquete a la vez, solo la primera afecta la fila y la
+   * segunda recibe 409 con los datos de la entrega que sí quedó.
+   *
+   * Después avisa a los residentes de la unidad (H30). Si el aviso falla, la
+   * entrega ya quedó registrada y solo se deja constancia en el log.
+   */
+  async deliver(
+    agent: User,
+    id: string,
+    dto: DeliverPackageDto,
+  ): Promise<DeliveredPackageDto> {
+    const deliveredAt = new Date();
+
+    const result = await this.prisma.package.updateMany({
+      where: { id, status: PackageStatus.PENDIENTE_ENTREGA },
+      data: {
+        status: PackageStatus.ENTREGADO,
+        deliveredAt,
+        deliveredById: agent.id,
+        pickedUpByName: dto.pickedUpByName,
+        pickedUpByDocType: dto.pickedUpByDocType,
+        // Igual que H14 y H16: el pasaporte se guarda en mayúsculas.
+        pickedUpByDocNumber: normalizeDocument(
+          dto.pickedUpByDocType,
+          dto.pickedUpByDocNumber,
+        ),
+      },
+    });
+
+    if (result.count === 0) {
+      // No se actualizó nada: o no existe (404) o ya estaba entregado (409).
+      const existing = await this.prisma.package.findUnique({
+        where: { id },
+        select: { deliveredAt: true, pickedUpByName: true },
+      });
+      if (!existing) {
+        throw new NotFoundException(DELIVERY_MESSAGES.notFound);
+      }
+      // La card pide solo la fecha: "Este paquete ya fue entregado el <fecha> a <nombre>."
+      const when = existing.deliveredAt
+        ? formatDate(existing.deliveredAt)
+        : 'una fecha anterior';
+      throw new ConflictException(
+        DELIVERY_MESSAGES.alreadyDelivered(
+          when,
+          existing.pickedUpByName ?? 'otra persona',
+        ),
+      );
+    }
+
+    const pkg = await this.prisma.package.findUniqueOrThrow({
+      where: { id },
+      select: {
+        id: true,
+        code: true,
+        status: true,
+        deliveredAt: true,
+        pickedUpByName: true,
+        unitId: true,
+        unit: { select: { code: true } },
+      },
+    });
+
+    await this.notifyDelivery(pkg);
+
+    return {
+      id: pkg.id,
+      code: pkg.code,
+      status: pkg.status,
+      deliveredAt: pkg.deliveredAt ?? deliveredAt,
+      pickedUpByName: pkg.pickedUpByName ?? dto.pickedUpByName,
+    };
+  }
+
+  /** Aviso "Paquete entregado" a los residentes de la unidad (H21 + H30). */
+  private async notifyDelivery(pkg: {
+    id: string;
+    code: string;
+    deliveredAt: Date | null;
+    pickedUpByName: string | null;
+    unitId: string;
+    unit: { code: string };
+  }): Promise<void> {
+    try {
+      const residents = await this.prisma.user.findMany({
+        where: { unitId: pkg.unitId, role: Role.RESIDENTE, isActive: true },
+        select: { id: true },
+      });
+      if (residents.length === 0) return;
+
+      const when = pkg.deliveredAt ?? new Date();
+      await this.notifications.send({
+        recipient: {
+          type: RecipientType.USUARIO,
+          ids: residents.map((resident) => resident.id),
+        },
+        title: 'Paquete entregado',
+        message: `El paquete ${pkg.code} se entregó a ${pkg.pickedUpByName ?? ''} el ${formatDate(when)} a las ${formatTime(when)}. Si no fuiste tú ni alguien de tu confianza, avisa a portería.`,
+        sourceModule: SourceModule.PAQUETERIA,
+        reference: { type: 'package', id: pkg.id },
+      });
+    } catch (error) {
+      this.logger.error(
+        `No se pudo avisar la entrega del paquete ${pkg.code} a la unidad ${pkg.unit.code}`,
+        error,
+      );
+    }
   }
 
   /** Aviso "Tienes un paquete en portería" a los residentes de la unidad. */

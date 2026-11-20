@@ -71,4 +71,13 @@ export class ParticipationReportRepository {
     ]);
     return { rows, total };
   }
+
+  /** La última asamblea Cerrada, por su fecha de cierre (H37); null si no hay. */
+  lastClosed(): Promise<AssemblyRow | null> {
+    return this.prisma.assembly.findFirst({
+      where: { status: AssemblyStatus.CERRADA },
+      select: ASSEMBLY_SELECT,
+      orderBy: [{ closedAt: 'desc' }, { id: 'desc' }],
+    });
+  }
 }

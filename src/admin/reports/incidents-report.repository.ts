@@ -73,6 +73,13 @@ export class IncidentsReportRepository {
     }) as Promise<ResolutionTimes[]>;
   }
 
+  /** Todas las incidencias abiertas hoy (Pendiente o En proceso), sin periodo (H37). */
+  countOpen(): Promise<number> {
+    return this.prisma.incident.count({
+      where: { status: { in: OPEN_STATUSES } },
+    });
+  }
+
   /**
    * Abiertas hoy creadas antes de `createdBefore`, de la más antigua a la más
    * reciente (el número desempata). No aplica el periodo del reporte.

@@ -6,6 +6,7 @@ import {
 } from './controllers/index.js';
 import { AnnouncementRepository } from './repositories/index.js';
 import {
+  AnnouncementReadsService,
   AnnouncementsService,
   ResidentAnnouncementsService,
 } from './services/index.js';
@@ -16,6 +17,7 @@ import {
   providers: [
     AnnouncementsService,
     ResidentAnnouncementsService,
+    AnnouncementReadsService,
     AnnouncementRepository,
   ],
 })

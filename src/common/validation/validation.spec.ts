@@ -77,6 +77,19 @@ describe('validationExceptionFactory', () => {
       ]),
     ).toMatchObject({ message: ['El título es obligatorio.'] });
   });
+
+  it('un campo que no se acepta responde en español con su nombre', () => {
+    expect(
+      bodyOf([
+        failure('userId', {
+          whitelistValidation: 'property userId should not exist',
+        }),
+      ]),
+    ).toMatchObject({
+      message: ['El campo userId no está permitido.'],
+      field: 'userId',
+    });
+  });
 });
 
 describe('badRequest', () => {

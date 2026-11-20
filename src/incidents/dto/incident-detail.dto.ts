@@ -36,6 +36,8 @@ export class IncidentListDto {
 }
 
 export class IncidentAssigneeDto {
+  /** Lo usa el panel de gestión del Administrador (H12). */
+  @ApiProperty({ format: 'uuid' }) id!: string;
   @ApiProperty() name!: string;
   @ApiProperty({ example: 'Fontanería' }) specialty!: string;
 }

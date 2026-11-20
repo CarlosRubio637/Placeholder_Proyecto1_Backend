@@ -27,6 +27,8 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
 
   ['get', 'torres', [R, S, A]],
   ['get', 'unidades', [S, A]],
+  // H18: quién está dentro.
+  ['get', 'seguridad/visitas/dentro', [S]],
 
   ['get', 'notificaciones', ALL],
   ['get', 'notificaciones/no-leidas/conteo', ALL],
@@ -37,6 +39,9 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'incidencias/mias', [R]],
   ['get', 'incidencias/fotos/:fotoId', [R, A]],
   ['get', 'incidencias/:id', [R, A]],
+  ['get', 'admin/incidencias', [A]],
+  ['patch', 'admin/incidencias/:id', [A]],
+  ['get', 'admin/responsables', [A]],
 
   ['get', 'admin/areas', [A]],
   ['post', 'admin/areas', [A]],
@@ -51,6 +56,7 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
 
   ['post', 'seguridad/paquetes', [S]],
   ['get', 'seguridad/paquetes', [S]],
+  ['post', 'seguridad/paquetes/:id/entrega', [S]],
   ['get', 'paquetes/mios', [R]],
 
   ['post', 'admin/asambleas', [A]],
@@ -70,8 +76,19 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'cuotas/generaciones', [A]],
   ['post', 'cuotas/tareas/ejecutar', [A]],
 
+  ['get', 'estado-cuenta', [R]],
+  ['get', 'cuotas/:cuotaId', [R]],
+  ['get', 'cuotas/:cuotaId/pagos', [R, A]],
+  ['post', 'cuotas/:cuotaId/pagos', [R]],
+  ['get', 'pagos/:pagoId', [R, A]],
+  ['get', 'unidades/:unitId/estado-cuenta', [A]],
+  ['get', 'admin/unidades/:unitId', [A]],
+  ['post', 'admin/unidades/:unitId/codigo-registro', [A]],
+
   ['get', 'admin/comunicados/audiencia', [A]],
   ['post', 'admin/comunicados', [A]],
+  ['get', 'admin/comunicados', [A]],
+  ['get', 'admin/comunicados/:id/lecturas', [A]],
   ['get', 'comunicados', [R]],
   ['post', 'comunicados/:id/lectura', [R]],
 
@@ -80,13 +97,23 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'directorio', [R]],
 
   ['post', 'visitas', [R]],
+  ['get', 'visitas/mias', [R]],
+  ['patch', 'visitas/:id/cancelar', [R]],
+  ['post', 'visitas/:id/respuesta', [R]],
   ['get', 'seguridad/visitas/buscar', [S]],
   ['post', 'seguridad/visitas/solicitudes', [S]],
   ['get', 'seguridad/visitas/solicitudes', [S]],
   ['post', 'seguridad/visitas/:id/entrada', [S]],
+  ['post', 'seguridad/visitas/:id/salida', [S]],
 
   ['get', 'admin/reportes/morosidad', [A]],
   ['get', 'admin/reportes/incidencias', [A]],
+  ['get', 'admin/reportes/areas', [A]],
+  ['get', 'admin/reportes/participacion', [A]],
+  ['get', 'admin/reportes/morosidad/exportar', [A]],
+  ['get', 'admin/reportes/areas/exportar', [A]],
+  ['get', 'admin/reportes/incidencias/exportar', [A]],
+  ['get', 'admin/reportes/participacion/exportar', [A]],
 
   ['get', 'morosidad', [A]],
 ];

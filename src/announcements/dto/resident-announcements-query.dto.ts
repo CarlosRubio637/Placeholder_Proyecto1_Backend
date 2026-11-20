@@ -1,16 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsEnum, IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsEnum, IsIn, IsOptional } from 'class-validator';
 import { AnnouncementCategory } from '@PrismaClient';
 import {
   ANNOUNCEMENT_MESSAGES,
   RESIDENT_ANNOUNCEMENT_MESSAGES,
-  RESIDENT_MAX_PAGE,
-  RESIDENT_MAX_PAGE_SIZE,
   RESIDENT_PAGE_SIZE,
   RESIDENT_TABS,
   type ResidentTab,
 } from '../announcements.constants.js';
+import { PageNumber, PageSize } from './pagination.js';
 
 export class ResidentAnnouncementsQueryDto {
   @ApiPropertyOptional({ enum: RESIDENT_TABS, default: 'vigentes' })
@@ -22,25 +20,9 @@ export class ResidentAnnouncementsQueryDto {
   @IsEnum(AnnouncementCategory, { message: ANNOUNCEMENT_MESSAGES.category })
   category?: AnnouncementCategory;
 
-  @ApiPropertyOptional({ default: 1, minimum: 1, maximum: RESIDENT_MAX_PAGE })
-  @Type(() => Number)
-  @IsInt({ message: RESIDENT_ANNOUNCEMENT_MESSAGES.page })
-  @Min(1, { message: RESIDENT_ANNOUNCEMENT_MESSAGES.page })
-  @Max(RESIDENT_MAX_PAGE, {
-    message: RESIDENT_ANNOUNCEMENT_MESSAGES.pageTooHigh,
-  })
+  @PageNumber()
   page: number = 1;
 
-  @ApiPropertyOptional({
-    default: RESIDENT_PAGE_SIZE,
-    minimum: 1,
-    maximum: RESIDENT_MAX_PAGE_SIZE,
-  })
-  @Type(() => Number)
-  @IsInt({ message: RESIDENT_ANNOUNCEMENT_MESSAGES.pageSize })
-  @Min(1, { message: RESIDENT_ANNOUNCEMENT_MESSAGES.pageSize })
-  @Max(RESIDENT_MAX_PAGE_SIZE, {
-    message: RESIDENT_ANNOUNCEMENT_MESSAGES.pageSize,
-  })
+  @PageSize(RESIDENT_PAGE_SIZE)
   pageSize: number = RESIDENT_PAGE_SIZE;
 }

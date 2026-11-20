@@ -1,14 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
-  ArrayMaxSize,
-  ArrayMinSize,
-  ArrayUnique,
-  IsArray,
   IsEnum,
   IsISO8601,
   IsString,
-  IsUUID,
   Matches,
   ValidateIf,
 } from 'class-validator';
@@ -18,6 +13,7 @@ import {
   ANNOUNCEMENT_MESSAGES,
 } from '../announcements.constants.js';
 import { CodePointLength } from './code-point-length.js';
+import { TowerSelection } from './tower-selection.js';
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -65,13 +61,7 @@ export class CreateAnnouncementDto {
   @ValidateIf(
     (dto: CreateAnnouncementDto) => dto.audience === AudienceType.TORRES,
   )
-  @IsArray({ message: ANNOUNCEMENT_MESSAGES.towerIds })
-  @ArrayMinSize(1, { message: ANNOUNCEMENT_MESSAGES.towerIds })
-  @ArrayMaxSize(ANNOUNCEMENT_LIMITS.maxTowers, {
-    message: ANNOUNCEMENT_MESSAGES.maxTowers,
-  })
-  @ArrayUnique({ message: ANNOUNCEMENT_MESSAGES.towerIds })
-  @IsUUID('all', { each: true, message: ANNOUNCEMENT_MESSAGES.towerIdFormat })
+  @TowerSelection(ANNOUNCEMENT_LIMITS.maxTowers)
   towerIds?: string[];
 
   @ApiProperty({

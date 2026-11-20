@@ -68,6 +68,7 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'cuotas/generaciones/vista-previa', [A]],
   ['post', 'cuotas/generaciones', [A]],
   ['get', 'cuotas/generaciones', [A]],
+  ['post', 'cuotas/tareas/ejecutar', [A]],
 
   ['get', 'admin/comunicados/audiencia', [A]],
   ['post', 'admin/comunicados', [A]],

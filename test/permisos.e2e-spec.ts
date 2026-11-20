@@ -27,6 +27,8 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
 
   ['get', 'torres', [S, A]],
   ['get', 'unidades', [S, A]],
+  // H18: quién está dentro.
+  ['get', 'seguridad/visitas/dentro', [S]],
 
   ['get', 'notificaciones', ALL],
   ['get', 'notificaciones/no-leidas/conteo', ALL],

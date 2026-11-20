@@ -7,7 +7,11 @@ export const MAX_DAYS_AHEAD = 30;
 export const MAX_ACTIVE_RESERVATIONS_PER_UNIT = 2;
 
 /** "<areaId>|<fecha>|<inicio>": único mientras la reserva está CONFIRMADA. */
-export function slotKey(areaId: string, date: string, startTime: string): string {
+export function slotKey(
+  areaId: string,
+  date: string,
+  startTime: string,
+): string {
   return `${areaId}|${date}|${startTime}`;
 }
 
@@ -22,11 +26,17 @@ export function reservationCodePrefix(createdOn: string): string {
 }
 
 /** La franja del horario que empieza a `startTime`, o null si no hay ninguna. */
-export function findSlot(schedule: AreaSchedule, startTime: string): Slot | null {
-  return buildSlots(schedule).find((slot) => slot.startTime === startTime) ?? null;
+export function findSlot(
+  schedule: AreaSchedule,
+  startTime: string,
+): Slot | null {
+  return (
+    buildSlots(schedule).find((slot) => slot.startTime === startTime) ?? null
+  );
 }
 
-export type SlotStatus = 'DISPONIBLE' | 'RESERVADO' | 'MANTENIMIENTO' | 'PASADO';
+export type SlotStatus =
+  'DISPONIBLE' | 'RESERVADO' | 'MANTENIMIENTO' | 'PASADO';
 
 export interface AvailabilitySlot extends Slot {
   status: SlotStatus;
@@ -65,9 +75,19 @@ export function buildAvailability(params: {
       ...slot,
       status,
       ownReservationId:
-        reservation && params.unitId !== null && reservation.unitId === params.unitId
+        reservation &&
+        params.unitId !== null &&
+        reservation.unitId === params.unitId
           ? reservation.id
           : null,
     };
   });
+}
+
+/** Anticipación mínima para que el residente cancele (H8). */
+export const MIN_CANCEL_NOTICE_MS = 24 * 60 * 60 * 1000;
+
+/** Una reserva Confirmada se puede cancelar si faltan al menos 24 h para su inicio (H8). */
+export function canCancelAt(start: Date, now: Date): boolean {
+  return start.getTime() - now.getTime() >= MIN_CANCEL_NOTICE_MS;
 }

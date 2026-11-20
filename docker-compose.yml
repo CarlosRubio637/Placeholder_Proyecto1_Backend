@@ -48,6 +48,11 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       REFRESH_TOKEN_EXPIRES_IN_DAYS: ${REFRESH_TOKEN_EXPIRES_IN_DAYS:-7}
       BCRYPT_SALT_ROUNDS: ${BCRYPT_SALT_ROUNDS:-12}
+      # Carpeta de fotos de incidencias (H10) dentro del contenedor, montada en
+      # el volumen `uploads` para que no se pierdan al recrear el contenedor.
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
     ports:
       - '${PORT:-3000}:3000'
     # Aplica las migraciones pendientes antes de levantar el servidor.
@@ -55,3 +60,4 @@ services:
 
 volumes:
   pgdata:
+  uploads:

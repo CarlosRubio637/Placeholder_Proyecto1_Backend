@@ -84,3 +84,10 @@ export const MY_VISITS_MESSAGES = {
   expired: 'La solicitud venció: pasaron más de 15 minutos sin respuesta.',
   noReason: 'Sin motivo indicado',
 } as const;
+
+/** Mensajes de la salida de visitantes (H17). */
+export const EXIT_MESSAGES = {
+  visitNotFound: 'La visita no existe.',
+  /** 409 cuando la visita no está Dentro. */
+  notInside: 'Este visitante no tiene una entrada activa.',
+} as const;

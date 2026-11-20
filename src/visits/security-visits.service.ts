@@ -23,11 +23,13 @@ import type {
   SecurityVisitDto,
   SecurityVisitListDto,
   VisitEntryDto,
+  VisitExitDto,
   VisitRequestCreatedDto,
   VisitRequestListDto,
 } from './dto/index.js';
 import {
   ENTRY_MESSAGES,
+  EXIT_MESSAGES,
   REQUEST_RESPONSE_MINUTES,
   VISIT_HOURS,
   VISIT_STATUS_LABELS,
@@ -243,6 +245,46 @@ export class SecurityVisitsService {
 
       return { id: visit.id, status: VisitStatus.DENTRO, entryAt: now };
     });
+  }
+
+  /**
+   * Registra la salida de un visitante (H17): la visita pasa de Dentro a
+   * Finalizada con la hora del servidor y el agente que la registra.
+   *
+   * La actualización está condicionada por status = DENTRO en una sola
+   * sentencia: si dos agentes registran la misma salida a la vez, solo la
+   * primera afecta la fila y la otra recibe 409.
+   */
+  async registerExit(
+    guard: User,
+    visitId: string,
+    now = new Date(),
+  ): Promise<VisitExitDto> {
+    const { count } = await this.prisma.visit.updateMany({
+      where: { id: visitId, status: VisitStatus.DENTRO },
+      data: { status: VisitStatus.FINALIZADA, exitAt: now, exitById: guard.id },
+    });
+
+    if (count === 0) {
+      // No se actualizó nada: o no existe (404) o no está Dentro (409).
+      const exists = await this.prisma.visit.findUnique({
+        where: { id: visitId },
+        select: { id: true },
+      });
+      if (!exists) throw new NotFoundException(EXIT_MESSAGES.visitNotFound);
+      throw new ConflictException(EXIT_MESSAGES.notInside);
+    }
+
+    const visit = await this.prisma.visit.findUniqueOrThrow({
+      where: { id: visitId },
+      select: { id: true, entryAt: true, exitAt: true },
+    });
+    return {
+      id: visit.id,
+      status: VisitStatus.FINALIZADA,
+      entryAt: visit.entryAt,
+      exitAt: visit.exitAt ?? now,
+    };
   }
 
   /** ¿El visitante tiene otra visita Dentro, en cualquier unidad? */

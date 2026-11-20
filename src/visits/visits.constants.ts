@@ -62,6 +62,29 @@ export const ENTRY_MESSAGES = {
     `No se puede registrar la entrada: la visita está ${label}.`,
 } as const;
 
+/** Tamaño de página de "Mis visitas" (H15). */
+export const MY_VISITS_PAGE_SIZE = 10;
+export const MY_VISITS_MAX_PAGE_SIZE = 50;
+/** Máximo del motivo de rechazo (H15). */
+export const REJECT_REASON_MAX = 100;
+/** Motivo que guarda la tarea cuando la solicitud vence sin respuesta (H15). */
+export const NO_RESPONSE_REASON = 'Sin respuesta del residente';
+
+/** Mensajes de "Mis visitas" (H15). */
+export const MY_VISITS_MESSAGES = {
+  tab: 'Elige la pestaña: activas o historial.',
+  page: 'La página debe ser un número entero mayor o igual a 1.',
+  pageSize: `El tamaño de página debe estar entre 1 y ${MY_VISITS_MAX_PAGE_SIZE}.`,
+  decision: 'La respuesta debe ser APROBAR o RECHAZAR.',
+  reason: `El motivo del rechazo puede tener máximo ${REJECT_REASON_MAX} caracteres.`,
+  notFound: 'La visita no existe.',
+  notAuthorized: 'Solo se pueden cancelar visitas Autorizadas.',
+  notPending: 'La solicitud ya no está pendiente de autorización.',
+  alreadyAnswered: 'Otro residente ya respondió esta solicitud.',
+  expired: 'La solicitud venció: pasaron más de 15 minutos sin respuesta.',
+  noReason: 'Sin motivo indicado',
+} as const;
+
 /** Mensajes de la salida de visitantes (H17). */
 export const EXIT_MESSAGES = {
   visitNotFound: 'La visita no existe.',

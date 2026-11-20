@@ -20,3 +20,21 @@ export const FEE_MESSAGES = {
 export function periodAlreadyGeneratedMessage(label: string): string {
   return `Las cuotas del periodo ${label} ya fueron generadas para todas las unidades.`;
 }
+
+export const OVERDUE_AFTER_DAYS = 30;
+export const REMINDER_DAYS_BEFORE = 5;
+export const OVERDUE_CRON = '5 0 * * *';
+export const REMINDER_CRON = '0 8 * * *';
+
+export const FEE_TASK_TITLES = {
+  reminder: 'Cuota por vencer',
+  overdue: 'Cuota en mora',
+} as const;
+
+export function reminderMessage(fee: string, dueDate: string): string {
+  return `Tu cuota ${fee} vence el ${dueDate}.`;
+}
+
+export function overdueMessage(fee: string, since: string): string {
+  return `Tu cuota ${fee} está en mora desde el ${since}.`;
+}

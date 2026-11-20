@@ -37,6 +37,7 @@ async function main() {
   await seedMaintenanceStaff();
   await seedCommonAreas();
   await seedFees();
+  if (process.env.NODE_ENV !== 'test') await seedFeeTasksScenario();
 }
 
 // --- H39: torres y unidades --------------------------------------------------
@@ -446,6 +447,76 @@ async function seedFees() {
     }, {});
     console.log(
       `Cuotas de ${period}: ${fees.length} (${JSON.stringify(summary)})`,
+    );
+  }
+}
+
+const FEE_TASKS_SCENARIO_EMAIL = 'residente5@condominio.test';
+const FEE_TASKS_SCENARIO_MONTHS_BACK = 3;
+const FEE_TASKS_SCENARIO_DAYS_TO_DUE = 3;
+
+async function seedFeeTasksScenario() {
+  const admin = await prisma.user.findUniqueOrThrow({
+    where: { email: 'admin@condominio.test' },
+  });
+  const { unitId } = await prisma.user.findUniqueOrThrow({
+    where: { email: FEE_TASKS_SCENARIO_EMAIL },
+    select: { unitId: true },
+  });
+  if (!unitId) {
+    throw new Error(`${FEE_TASKS_SCENARIO_EMAIL} no tiene unidad asignada`);
+  }
+
+  const today = todayIso(new Date());
+  const overdueDueIso = `${addMonths(currentPeriod(today), -FEE_TASKS_SCENARIO_MONTHS_BACK)}-${FEE_DUE_DAY}`;
+  const lastDayOfMonth = addDays(
+    `${addMonths(currentPeriod(today), 1)}-01`,
+    -1,
+  );
+  const threeDaysAhead = addDays(today, FEE_TASKS_SCENARIO_DAYS_TO_DUE);
+  const reminderDueIso =
+    threeDaysAhead > lastDayOfMonth ? lastDayOfMonth : threeDaysAhead;
+
+  for (const dueIso of [overdueDueIso, reminderDueIso]) {
+    const period = currentPeriod(dueIso);
+    const existing = await prisma.fee.findUnique({
+      where: { unitId_period: { unitId, period } },
+      select: { id: true },
+    });
+    if (existing) {
+      console.log(`Escenario de H5 (${period}): ya existe, sin cambios`);
+      continue;
+    }
+
+    const concept = defaultConcept(period);
+    const generatedAt = svDateTime(`${period}-01`, '09:00');
+    await prisma.$transaction(async (tx) => {
+      const generation = await tx.feeGeneration.create({
+        data: {
+          period,
+          amount: FEE_AMOUNT,
+          dueDate: toDbDate(dueIso),
+          concept,
+          createdCount: 1,
+          skippedCount: 0,
+          createdById: admin.id,
+          createdAt: generatedAt,
+        },
+      });
+      await tx.fee.create({
+        data: {
+          unitId,
+          generationId: generation.id,
+          period,
+          concept,
+          amount: FEE_AMOUNT,
+          dueDate: toDbDate(dueIso),
+          createdAt: generatedAt,
+        },
+      });
+    });
+    console.log(
+      `Escenario de H5 (${period}): cuota Pendiente que vence el ${dueIso}`,
     );
   }
 }

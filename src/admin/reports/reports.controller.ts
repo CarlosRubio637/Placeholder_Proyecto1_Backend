@@ -9,7 +9,10 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Roles } from '@Auth/decorators';
+import { AreasUsageService } from './areas-usage.service.js';
 import { DelinquencyService } from './delinquency.service.js';
+import { AreasUsageQueryDto } from './dto/areas-usage-query.dto.js';
+import { AreasUsageReportDto } from './dto/areas-usage-response.dto.js';
 import { DelinquencyQueryDto } from './dto/delinquency-query.dto.js';
 import { DelinquencyReportDto } from './dto/delinquency-response.dto.js';
 import { ParticipationReportQueryDto } from './dto/participation-report-query.dto.js';
@@ -30,6 +33,7 @@ export class ReportsController {
   constructor(
     private readonly delinquency: DelinquencyService,
     private readonly incidents: IncidentsReportService,
+    private readonly areas: AreasUsageService,
     private readonly participation: ParticipationReportService,
   ) {}
 
@@ -57,6 +61,17 @@ export class ReportsController {
     @Query() query: IncidentsReportQueryDto,
   ): Promise<IncidentsReportDto> {
     return this.incidents.getReport(query);
+  }
+
+  @Get('areas')
+  @ApiOperation({ summary: 'Reporte de uso de áreas comunes (H33)' })
+  @ApiOkResponse({ type: AreasUsageReportDto })
+  @ApiBadRequestResponse({
+    description:
+      'Fecha inválida, fin anterior al inicio o rango de más de 366 días. `field` indica cuál.',
+  })
+  getAreas(@Query() query: AreasUsageQueryDto): Promise<AreasUsageReportDto> {
+    return this.areas.getReport(query);
   }
 
   @Get('participacion')

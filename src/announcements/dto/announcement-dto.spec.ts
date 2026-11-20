@@ -98,7 +98,7 @@ describe('DTO del comunicado', () => {
       towerIds,
     });
     expect(fields).toEqual(['towerIds']);
-    expect(messages).toContain(ANNOUNCEMENT_MESSAGES.towerIds);
+    expect(messages).toEqual([ANNOUNCEMENT_MESSAGES.towerIds]);
   });
 
   it('rechaza TORRES con 4 torres con el máximo de torres', async () => {
@@ -130,7 +130,7 @@ describe('DTO del comunicado', () => {
       towerIds: ['torre-a'],
     });
     expect(fields).toEqual(['towerIds']);
-    expect(messages).toContain(ANNOUNCEMENT_MESSAGES.towerIdFormat);
+    expect(messages).toEqual([ANNOUNCEMENT_MESSAGES.towerIdFormat]);
   });
 
   it.each([['2026-13-01'], ['30/11/2026'], [undefined]])(

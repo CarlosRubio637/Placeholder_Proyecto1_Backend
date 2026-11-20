@@ -68,3 +68,8 @@ export function addDays(isoDate: string, days: number): string {
 export function condominiumDayStart(isoDate: string): Date {
   return new Date(`${isoDate}T00:00:00.000-06:00`);
 }
+
+/** Instante de "AAAA-MM-DD" a las "HH:mm" en el condominio (UTC−6 fijo). */
+export function condominiumInstant(isoDate: string, time: string): Date {
+  return new Date(`${isoDate}T${time}:00.000-06:00`);
+}

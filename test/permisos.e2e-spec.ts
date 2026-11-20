@@ -27,6 +27,8 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
 
   ['get', 'torres', [S, A]],
   ['get', 'unidades', [S, A]],
+  // H18: quién está dentro.
+  ['get', 'seguridad/visitas/dentro', [S]],
 
   ['get', 'notificaciones', ALL],
   ['get', 'notificaciones/no-leidas/conteo', ALL],
@@ -50,9 +52,12 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'areas', [R, A]],
   ['get', 'areas/:areaId/disponibilidad', [R, A]],
   ['post', 'reservas', [R]],
+  ['get', 'reservas/mias', [R]],
+  ['patch', 'reservas/:id/cancelar', [R]],
 
   ['post', 'seguridad/paquetes', [S]],
   ['get', 'seguridad/paquetes', [S]],
+  ['post', 'seguridad/paquetes/:id/entrega', [S]],
   ['get', 'paquetes/mios', [R]],
 
   ['post', 'admin/asambleas', [A]],
@@ -70,9 +75,21 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'cuotas/generaciones/vista-previa', [A]],
   ['post', 'cuotas/generaciones', [A]],
   ['get', 'cuotas/generaciones', [A]],
+  ['post', 'cuotas/tareas/ejecutar', [A]],
+
+  ['get', 'estado-cuenta', [R]],
+  ['get', 'cuotas/:cuotaId', [R]],
+  ['get', 'cuotas/:cuotaId/pagos', [R, A]],
+  ['post', 'cuotas/:cuotaId/pagos', [R]],
+  ['get', 'pagos/:pagoId', [R, A]],
+  ['get', 'unidades/:unitId/estado-cuenta', [A]],
+  ['get', 'admin/unidades/:unitId', [A]],
+  ['post', 'admin/unidades/:unitId/codigo-registro', [A]],
 
   ['get', 'admin/comunicados/audiencia', [A]],
   ['post', 'admin/comunicados', [A]],
+  ['get', 'admin/comunicados', [A]],
+  ['get', 'admin/comunicados/:id/lecturas', [A]],
   ['get', 'comunicados', [R]],
   ['post', 'comunicados/:id/lectura', [R]],
 
@@ -80,13 +97,25 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['put', 'perfil', [R]],
 
   ['post', 'visitas', [R]],
+  ['get', 'visitas/mias', [R]],
+  ['patch', 'visitas/:id/cancelar', [R]],
+  ['post', 'visitas/:id/respuesta', [R]],
   ['get', 'seguridad/visitas/buscar', [S]],
   ['post', 'seguridad/visitas/solicitudes', [S]],
   ['get', 'seguridad/visitas/solicitudes', [S]],
   ['post', 'seguridad/visitas/:id/entrada', [S]],
+  ['post', 'seguridad/visitas/:id/salida', [S]],
 
   ['get', 'admin/reportes/morosidad', [A]],
   ['get', 'admin/reportes/incidencias', [A]],
+  ['get', 'admin/reportes/areas', [A]],
+  ['get', 'admin/reportes/participacion', [A]],
+  ['get', 'admin/reportes/morosidad/exportar', [A]],
+  ['get', 'admin/reportes/areas/exportar', [A]],
+  ['get', 'admin/reportes/incidencias/exportar', [A]],
+  ['get', 'admin/reportes/participacion/exportar', [A]],
+
+  ['get', 'morosidad', [A]],
 ];
 
 const concrete = (path: string) => path.replace(/:[A-Za-z]+/g, ID);

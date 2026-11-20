@@ -46,6 +46,8 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'areas', [R, A]],
   ['get', 'areas/:areaId/disponibilidad', [R, A]],
   ['post', 'reservas', [R]],
+  ['get', 'reservas/mias', [R]],
+  ['patch', 'reservas/:id/cancelar', [R]],
 
   ['post', 'seguridad/paquetes', [S]],
   ['get', 'seguridad/paquetes', [S]],
@@ -59,10 +61,14 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'asambleas/activas', [R]],
   ['get', 'asambleas/:id', [R]],
   ['post', 'asambleas/temas/:temaId/votos', [R]],
+  ['get', 'asambleas/cerradas', [R]],
+  ['get', 'asambleas/:id/resultado', [A, R]],
+  ['get', 'asambleas/temas/:temaId/participacion', [A, R]],
 
   ['get', 'cuotas/generaciones/vista-previa', [A]],
   ['post', 'cuotas/generaciones', [A]],
   ['get', 'cuotas/generaciones', [A]],
+  ['post', 'cuotas/tareas/ejecutar', [A]],
 
   ['get', 'admin/comunicados/audiencia', [A]],
   ['post', 'admin/comunicados', [A]],
@@ -74,9 +80,15 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'directorio', [R]],
 
   ['post', 'visitas', [R]],
+  ['get', 'seguridad/visitas/buscar', [S]],
+  ['post', 'seguridad/visitas/solicitudes', [S]],
+  ['get', 'seguridad/visitas/solicitudes', [S]],
+  ['post', 'seguridad/visitas/:id/entrada', [S]],
 
   ['get', 'admin/reportes/morosidad', [A]],
   ['get', 'admin/reportes/incidencias', [A]],
+
+  ['get', 'morosidad', [A]],
 ];
 
 const concrete = (path: string) => path.replace(/:[A-Za-z]+/g, ID);

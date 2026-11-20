@@ -1,15 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@Prisma/services';
-import { toDbDate } from '@Common/time';
-import { Prisma, ReservationStatus, type CommonArea, type Reservation } from '@PrismaClient';
+import { condominiumInstant, fromDbDate, toDbDate } from '@Common/time';
+import {
+  Prisma,
+  ReservationStatus,
+  type CommonArea,
+  type Reservation,
+} from '@PrismaClient';
 import {
   AreaBlockedError,
   AreaDisabledError,
   AreaNotFoundError,
+  CancellationTooLateError,
+  ReservationNotActiveError,
+  ReservationNotFoundError,
   SlotTakenError,
   UnitReservationLimitError,
 } from '../errors/index.js';
 import {
+  canCancelAt,
   MAX_ACTIVE_RESERVATIONS_PER_UNIT,
   reservationCode,
   reservationCodePrefix,
@@ -19,6 +28,12 @@ import {
 import { futureConfirmed, type Clock } from './area.repository.js';
 
 type Tx = Prisma.TransactionClient;
+
+/** Reserva con área y residente, para Mis reservas (H8). */
+export type UnitReservationRow = Reservation & {
+  area: { id: string; name: string };
+  user: { email: string; profile: { fullName: string } | null };
+};
 
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
 /** Reintentos si dos reservas del mismo día toman el mismo consecutivo. */
@@ -73,7 +88,10 @@ export class ReservationRepository {
   async findDayOccupancy(
     areaId: string,
     isoDate: string,
-  ): Promise<{ blocked: boolean; reservations: Pick<Reservation, 'id' | 'startTime' | 'unitId'>[] }> {
+  ): Promise<{
+    blocked: boolean;
+    reservations: Pick<Reservation, 'id' | 'startTime' | 'unitId'>[];
+  }> {
     const date = toDbDate(isoDate);
     const [block, reservations] = await Promise.all([
       this.prisma.areaBlock.findFirst({
@@ -89,18 +107,112 @@ export class ReservationRepository {
   }
 
   /**
+   * Reservas de la unidad en una pestaña de Mis reservas (H8). "proximas" son
+   * las Confirmadas que todavía no empiezan; "historial", todo lo demás.
+   */
+  async listForUnit(params: {
+    unitId: string;
+    upcoming: boolean;
+    clock: Clock;
+    skip: number;
+    take: number;
+  }): Promise<{ rows: UnitReservationRow[]; total: number }> {
+    const future = futureConfirmed(params.clock);
+    const where: Prisma.ReservationWhereInput = params.upcoming
+      ? { unitId: params.unitId, ...future }
+      : { unitId: params.unitId, NOT: future };
+    const direction = params.upcoming ? 'asc' : 'desc';
+    const [rows, total] = await Promise.all([
+      this.prisma.reservation.findMany({
+        where,
+        orderBy: [
+          { date: direction },
+          { startTime: direction },
+          { createdAt: direction },
+        ],
+        skip: params.skip,
+        take: params.take,
+        include: {
+          area: { select: { id: true, name: true } },
+          user: {
+            select: { email: true, profile: { select: { fullName: true } } },
+          },
+        },
+      }),
+      this.prisma.reservation.count({ where }),
+    ]);
+    return { rows, total };
+  }
+
+  /**
+   * Cancela una reserva Confirmada de la unidad (H8). La actualización va
+   * condicionada a status = CONFIRMADA y libera la franja (slotKey = null) en
+   * la misma sentencia, así dos cancelaciones simultáneas no pasan las dos.
+   *
+   * @throws {ReservationNotFoundError} si no existe o es de otra unidad.
+   * @throws {ReservationNotActiveError} si ya estaba cancelada.
+   * @throws {CancellationTooLateError} si faltan menos de 24 horas.
+   */
+  async cancelForUnit(params: {
+    reservationId: string;
+    unitId: string;
+    actorId: string;
+    now: Date;
+  }): Promise<{ reservation: Reservation; areaName: string }> {
+    const current = await this.prisma.reservation.findFirst({
+      where: { id: params.reservationId, unitId: params.unitId },
+      include: { area: { select: { name: true } } },
+    });
+    if (!current) {
+      throw new ReservationNotFoundError(params.reservationId);
+    }
+    if (current.status !== ReservationStatus.CONFIRMADA) {
+      throw new ReservationNotActiveError(current.id);
+    }
+    if (
+      !canCancelAt(
+        condominiumInstant(fromDbDate(current.date), current.startTime),
+        params.now,
+      )
+    ) {
+      throw new CancellationTooLateError(current.id);
+    }
+
+    const { count } = await this.prisma.reservation.updateMany({
+      where: { id: current.id, status: ReservationStatus.CONFIRMADA },
+      data: {
+        status: ReservationStatus.CANCELADA,
+        slotKey: null,
+        cancelledAt: params.now,
+        cancelledById: params.actorId,
+      },
+    });
+    if (count === 0) {
+      throw new ReservationNotActiveError(current.id);
+    }
+    const reservation = await this.prisma.reservation.findUniqueOrThrow({
+      where: { id: current.id },
+    });
+    return { reservation, areaName: current.area.name };
+  }
+
+  /**
    * @throws {AreaNotFoundError}
    * @throws {AreaDisabledError}
    * @throws {AreaBlockedError}
    * @throws {UnitReservationLimitError}
    * @throws {SlotTakenError}
    */
-  async create(data: NewReservation): Promise<{ reservation: Reservation; area: CommonArea }> {
+  async create(
+    data: NewReservation,
+  ): Promise<{ reservation: Reservation; area: CommonArea }> {
     const key = slotKey(data.areaId, data.date, data.startTime);
 
     for (let attempt = 1; ; attempt++) {
       try {
-        return await this.prisma.$transaction((tx) => this.createInTx(tx, data, key));
+        return await this.prisma.$transaction((tx) =>
+          this.createInTx(tx, data, key),
+        );
       } catch (error) {
         if (!isUniqueViolation(error)) {
           throw error;
@@ -133,7 +245,11 @@ export class ReservationRepository {
 
     const date = toDbDate(data.date);
     const block = await tx.areaBlock.findFirst({
-      where: { areaId: area.id, startDate: { lte: date }, endDate: { gte: date } },
+      where: {
+        areaId: area.id,
+        startDate: { lte: date },
+        endDate: { gte: date },
+      },
       select: { id: true },
     });
     if (block) {
@@ -147,7 +263,10 @@ export class ReservationRepository {
       throw new UnitReservationLimitError(data.unitId);
     }
 
-    const taken = await tx.reservation.findUnique({ where: { slotKey: key }, select: { id: true } });
+    const taken = await tx.reservation.findUnique({
+      where: { slotKey: key },
+      select: { id: true },
+    });
     if (taken) {
       throw new SlotTakenError(key);
     }

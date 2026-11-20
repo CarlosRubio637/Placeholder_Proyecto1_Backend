@@ -31,3 +31,33 @@ export const VISIT_MESSAGES = {
   duplicate: 'Este visitante ya tiene una autorización para esa fecha.',
   noUnit: 'Tu cuenta no tiene una unidad asignada.',
 } as const;
+
+/** Minutos que tiene el residente para responder una solicitud (H15, H16). */
+export const REQUEST_RESPONSE_MINUTES = 15;
+
+/** Nombre de cada estado, para los mensajes 409 de H16. */
+export const VISIT_STATUS_LABELS = {
+  AUTORIZADA: 'Autorizada',
+  PENDIENTE_AUTORIZACION: 'Pendiente de autorización',
+  RECHAZADA: 'Rechazada',
+  DENTRO: 'Dentro',
+  FINALIZADA: 'Finalizada',
+  CANCELADA: 'Cancelada',
+  VENCIDA: 'Vencida',
+} as const;
+
+/** Mensajes de portería (H16). */
+export const ENTRY_MESSAGES = {
+  search:
+    'Ingresa un código de 6 caracteres o un número de documento (6 a 12 letras, números o guiones).',
+  unitId: 'Selecciona la unidad destino.',
+  unitNotFound: 'La unidad no existe.',
+  unitWithoutResidents: 'La unidad no tiene residentes registrados.',
+  outsideHours: 'Fuera del horario de visitas.',
+  alreadyInside: 'Este visitante ya está dentro. Registra su salida primero.',
+  visitNotFound: 'La visita no existe.',
+  notValidNow: 'La autorización no es válida en este horario.',
+  /** 409 cuando la visita no está Autorizada. */
+  wrongStatus: (label: string) =>
+    `No se puede registrar la entrada: la visita está ${label}.`,
+} as const;

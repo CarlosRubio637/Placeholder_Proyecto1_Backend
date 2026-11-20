@@ -22,6 +22,7 @@ import { AssembliesModule } from './admin/assemblies/assemblies.module.js';
 import { ReportsModule } from './admin/reports/reports.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 import { VotingModule } from './voting/voting.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { VotingModule } from './voting/voting.module.js';
     IncidentsModule,
     ReservationsModule,
     FeesModule,
+    PaymentsModule,
     OverdueUnitsModule,
     AnnouncementsModule,
     AuthModule,

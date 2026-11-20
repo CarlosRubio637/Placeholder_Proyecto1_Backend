@@ -73,6 +73,15 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'cuotas/generaciones', [A]],
   ['post', 'cuotas/tareas/ejecutar', [A]],
 
+  ['get', 'estado-cuenta', [R]],
+  ['get', 'cuotas/:cuotaId', [R]],
+  ['get', 'cuotas/:cuotaId/pagos', [R, A]],
+  ['post', 'cuotas/:cuotaId/pagos', [R]],
+  ['get', 'pagos/:pagoId', [R, A]],
+  ['get', 'unidades/:unitId/estado-cuenta', [A]],
+  ['get', 'admin/unidades/:unitId', [A]],
+  ['post', 'admin/unidades/:unitId/codigo-registro', [A]],
+
   ['get', 'admin/comunicados/audiencia', [A]],
   ['post', 'admin/comunicados', [A]],
   ['get', 'comunicados', [R]],

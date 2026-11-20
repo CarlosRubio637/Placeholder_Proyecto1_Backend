@@ -1,6 +1,10 @@
 import { BadRequestException } from '@nestjs/common';
 import type { ValidationError } from 'class-validator';
 
+const CONSTRAINT_MESSAGES: Record<string, (field: string) => string> = {
+  whitelistValidation: (field) => `El campo ${field} no está permitido.`,
+};
+
 /** Recorre los errores (incluidos los anidados) en el mismo orden que Nest. */
 function flatten(
   errors: ValidationError[],
@@ -8,10 +12,12 @@ function flatten(
 ): { field: string; message: string }[] {
   return errors.flatMap((error) => {
     const field = parent ? `${parent}.${error.property}` : error.property;
-    const own = Object.values(error.constraints ?? {}).map((message) => ({
-      field,
-      message,
-    }));
+    const own = Object.entries(error.constraints ?? {}).map(
+      ([constraint, message]) => ({
+        field,
+        message: CONSTRAINT_MESSAGES[constraint]?.(field) ?? message,
+      }),
+    );
     return [...own, ...flatten(error.children ?? [], field)];
   });
 }

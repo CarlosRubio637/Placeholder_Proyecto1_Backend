@@ -66,3 +66,27 @@ export class UnitReservationLimitError extends Error {
     this.name = 'UnitReservationLimitError';
   }
 }
+
+/** La reserva no existe o es de otra unidad (H8). */
+export class ReservationNotFoundError extends Error {
+  constructor(public readonly reservationId: string) {
+    super(`No existe la reserva ${reservationId} en la unidad.`);
+    this.name = 'ReservationNotFoundError';
+  }
+}
+
+/** La reserva ya no está Confirmada (H8). */
+export class ReservationNotActiveError extends Error {
+  constructor(public readonly reservationId: string) {
+    super(`La reserva ${reservationId} ya no está confirmada.`);
+    this.name = 'ReservationNotActiveError';
+  }
+}
+
+/** Faltan menos de 24 horas para el inicio (H8). */
+export class CancellationTooLateError extends Error {
+  constructor(public readonly reservationId: string) {
+    super(`La reserva ${reservationId} empieza en menos de 24 horas.`);
+    this.name = 'CancellationTooLateError';
+  }
+}

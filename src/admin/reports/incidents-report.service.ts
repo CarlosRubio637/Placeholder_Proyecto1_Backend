@@ -53,6 +53,14 @@ export function periodInstants(period: ReportPeriod): InstantRange {
 }
 
 /**
+ * "Más de 7 días": creada a más tardar el día de hoy − 8, en la fecha del
+ * condominio. Así daysOpen siempre es 8 o más en la lista.
+ */
+function staleBefore(today: string): Date {
+  return condominiumDayStart(addDays(today, -STALE_AFTER_DAYS));
+}
+
+/**
  * Reporte de incidencias abiertas (H34).
  *
  * - Tabla cruzada: incidencias creadas en el periodo, por su estado y su
@@ -84,6 +92,20 @@ export class IncidentsReportService {
     return { from, to };
   }
 
+  /**
+   * Para el resumen (H37): todas las abiertas de hoy, sin periodo, y cuántas
+   * llevan más de 7 días (la misma regla que la lista del reporte).
+   */
+  async openSummary(
+    now = new Date(),
+  ): Promise<{ openTotal: number; staleCount: number }> {
+    const [openTotal, stale] = await Promise.all([
+      this.repository.countOpen(),
+      this.repository.staleOpen(staleBefore(todayIso(now)), 1, 1),
+    ]);
+    return { openTotal, staleCount: stale.total };
+  }
+
   async getReport(
     query: IncidentsReportQueryDto,
     now = new Date(),
@@ -92,14 +114,10 @@ export class IncidentsReportService {
     const period = periodInstants(this.resolvePeriod(query, today));
     const { page, pageSize } = query;
 
-    // "Más de 7 días": creada a más tardar el día de hoy − 8, en la fecha del
-    // condominio. Así daysOpen siempre es 8 o más en la lista.
-    const staleBefore = condominiumDayStart(addDays(today, -STALE_AFTER_DAYS));
-
     const [counts, resolutions, stale] = await Promise.all([
       this.repository.countByStatusAndPriority(period),
       this.repository.resolutionTimes(period),
-      this.repository.staleOpen(staleBefore, page, pageSize),
+      this.repository.staleOpen(staleBefore(today), page, pageSize),
     ]);
 
     const matrix: IncidentMatrixCellDto[] = STATUSES.flatMap((status) =>

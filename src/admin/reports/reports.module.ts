@@ -11,10 +11,12 @@ import { IncidentsReportService } from './incidents-report.service.js';
 import { ParticipationReportRepository } from './participation-report.repository.js';
 import { ParticipationReportService } from './participation-report.service.js';
 import { ReportsController } from './reports.controller.js';
+import { SummaryService } from './summary.service.js';
 
 // Reportes de administración (Módulo 10). H32: panel de morosidad.
 // H34: incidencias abiertas. H33: uso de áreas comunes.
 // H35: participación en votaciones. H36: exportación a PDF y CSV.
+// H37: resumen de un vistazo.
 @Module({
   imports: [PrismaModule],
   controllers: [ReportsController, ReportExportController],
@@ -28,6 +30,7 @@ import { ReportsController } from './reports.controller.js';
     ParticipationReportRepository,
     ParticipationReportService,
     ReportExportService,
+    SummaryService,
   ],
 })
 export class ReportsModule {}

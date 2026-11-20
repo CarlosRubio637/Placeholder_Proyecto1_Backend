@@ -21,6 +21,8 @@ import { IncidentsReportQueryDto } from './dto/incidents-report-query.dto.js';
 import { IncidentsReportDto } from './dto/incidents-report-response.dto.js';
 import { IncidentsReportService } from './incidents-report.service.js';
 import { ParticipationReportService } from './participation-report.service.js';
+import { AdminSummaryDto } from './dto/summary-response.dto.js';
+import { SummaryService } from './summary.service.js';
 
 /** Reportes para la administración (Módulo 10). */
 @ApiTags('reportes')
@@ -35,7 +37,17 @@ export class ReportsController {
     private readonly incidents: IncidentsReportService,
     private readonly areas: AreasUsageService,
     private readonly participation: ParticipationReportService,
+    private readonly summary: SummaryService,
   ) {}
+
+  @Get('resumen')
+  @ApiOperation({
+    summary: 'Resumen "de un vistazo": las cuatro tarjetas (H37)',
+  })
+  @ApiOkResponse({ type: AdminSummaryDto })
+  getSummary(): Promise<AdminSummaryDto> {
+    return this.summary.getSummary();
+  }
 
   @Get('morosidad')
   @ApiOperation({ summary: 'Panel de morosidad (H32)' })

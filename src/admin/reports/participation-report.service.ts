@@ -82,6 +82,12 @@ export class ParticipationReportService {
     return { from, to };
   }
 
+  /** La última asamblea Cerrada con su participación (H37); null si no hay. */
+  async lastClosed(): Promise<AssemblyParticipationDto | null> {
+    const row = await this.repository.lastClosed();
+    return row ? toAssemblyParticipation(row) : null;
+  }
+
   async getReport(
     query: ParticipationReportQueryDto,
     now = new Date(),

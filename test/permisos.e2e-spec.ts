@@ -96,6 +96,9 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['put', 'perfil', [R]],
 
   ['post', 'visitas', [R]],
+  ['get', 'visitas/mias', [R]],
+  ['patch', 'visitas/:id/cancelar', [R]],
+  ['post', 'visitas/:id/respuesta', [R]],
   ['get', 'seguridad/visitas/buscar', [S]],
   ['post', 'seguridad/visitas/solicitudes', [S]],
   ['get', 'seguridad/visitas/solicitudes', [S]],
@@ -107,6 +110,10 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['get', 'admin/reportes/areas', [A]],
   ['get', 'admin/reportes/participacion', [A]],
   ['get', 'admin/reportes/resumen', [A]],
+  ['get', 'admin/reportes/morosidad/exportar', [A]],
+  ['get', 'admin/reportes/areas/exportar', [A]],
+  ['get', 'admin/reportes/incidencias/exportar', [A]],
+  ['get', 'admin/reportes/participacion/exportar', [A]],
 
   ['get', 'morosidad', [A]],
 ];

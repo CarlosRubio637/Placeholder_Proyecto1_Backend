@@ -49,6 +49,8 @@ El backend tiene un módulo de NestJS por módulo del sistema. Todas las rutas l
 
 ## Inicio rápido
 
+Después de copiar el `.env`, completar `JWT_SECRET`, `SEED_DEMO_PASSWORD` y `SEED_TEST_PASSWORD`. Sin las dos últimas, el seed se detiene.
+
 ```bash
 cp .env.example .env
 docker compose up -d postgres

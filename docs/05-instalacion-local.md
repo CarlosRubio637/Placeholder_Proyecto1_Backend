@@ -13,7 +13,7 @@
 Opción recomendada para desarrollar: PostgreSQL en Docker y la API en la computadora.
 
 1. Clonar el repositorio del backend.
-2. Copiar el archivo de variables: `cp .env.example .env`. Cambiar `JWT_SECRET` por un valor propio de al menos 32 caracteres, por ejemplo con `openssl rand -base64 32`.
+2. Copiar el archivo de variables: `cp .env.example .env`. Cambiar `JWT_SECRET` por un valor propio de al menos 32 caracteres, por ejemplo con `openssl rand -base64 32`. Definir también `SEED_DEMO_PASSWORD` y `SEED_TEST_PASSWORD`, las contraseñas con las que el seed crea las cuentas.
 3. Levantar solo la base de datos: `docker compose up -d postgres`.
 4. Instalar las dependencias: `npm ci`. El `postinstall` genera el cliente de Prisma.
 5. Aplicar las migraciones: `npm run prisma:deploy`.
@@ -63,6 +63,8 @@ docker run -p 3001:3000 -e API_URL=http://host.docker.internal:3000/api/v1/ cond
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `POSTGRES_PORT` | Los usa docker-compose para crear el contenedor de PostgreSQL y publicar su puerto. | `postgres`, `postgres`, `si_be_boilerplate` y `5432` |
 | `FRONTEND_URL` | Origen que la API permite por CORS, sin barra final. Si son varios, separados por coma. Por defecto, `http://localhost:3001`. | `http://localhost:3001` |
 | `PAYMENT_GATEWAY_DELAY_MS` | Espera de la pasarela de pago simulada, en milisegundos (H1). Por defecto, 2000. | `2000` |
+| `SEED_DEMO_PASSWORD` | Obligatoria para `npm run db:seed`. Contraseña del usuario demo. No la usa la API. | Un valor propio |
+| `SEED_TEST_PASSWORD` | Obligatoria para `npm run db:seed`. Contraseña de todas las cuentas de prueba. No la usa la API. | Un valor propio |
 | `UPLOADS_DIR` | Carpeta donde se guardan las fotos de incidencias. Por defecto, `uploads` en la raíz del proyecto; en docker-compose, `/app/uploads`. | `uploads` |
 
 La API valida las variables obligatorias al arrancar. Si falta `DATABASE_URL` o `JWT_SECRET`, o el secreto es corto, se detiene con un mensaje que indica cuál.

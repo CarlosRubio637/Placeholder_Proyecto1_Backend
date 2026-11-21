@@ -10,7 +10,7 @@ export class LoginDto {
   // A diferencia del registro, acá NO se valida la forma de la contraseña:
   // las reglas de complejidad pueden cambiar con el tiempo y un usuario viejo
   // debe poder seguir entrando. Solo se acota el largo.
-  @ApiProperty({ example: 'Demo1234!' })
+  @ApiProperty({ example: 'MiClave2026' })
   @IsString()
   @IsNotEmpty({ message: 'La contraseña es obligatoria.' })
   @MaxLength(72)

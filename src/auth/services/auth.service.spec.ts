@@ -34,7 +34,7 @@ function setup() {
   return { service, usersService, tokenService };
 }
 
-const CREDENTIALS = { email: user.email, password: 'Prueba2026' };
+const CREDENTIALS = { email: user.email, password: 'ClaveUnitaria2026' };
 
 describe('AuthService.login', () => {
   beforeEach(() => vi.mocked(bcrypt.compare).mockClear());
@@ -45,7 +45,7 @@ describe('AuthService.login', () => {
     await expect(service.login(CREDENTIALS)).resolves.toEqual({ user, tokens });
 
     expect(usersService.verifyPassword).toHaveBeenCalledWith(
-      'Prueba2026',
+      'ClaveUnitaria2026',
       'hash-real',
     );
     expect(tokenService.issueTokenPair).toHaveBeenCalledWith(user);
@@ -91,7 +91,7 @@ describe('AuthService.login', () => {
 
     expect(bcrypt.compare).toHaveBeenCalledTimes(1);
     const [password, hash] = vi.mocked(bcrypt.compare).mock.calls[0];
-    expect(password).toBe('Prueba2026');
+    expect(password).toBe('ClaveUnitaria2026');
     // Un hash mal formado haría que bcrypt responda al instante.
     expect(hash).toMatch(/^\$2b\$12\$[./A-Za-z0-9]{53}$/);
     expect(usersService.verifyPassword).not.toHaveBeenCalled();

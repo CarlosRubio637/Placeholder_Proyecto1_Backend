@@ -53,7 +53,7 @@ export class RegistroDto {
 
   @ApiProperty({
     description: 'Debe incluir al menos una minúscula, una mayúscula y un número.',
-    example: 'Prueba2026',
+    example: 'MiClave2026',
     minLength: 8,
     maxLength: 72,
   })

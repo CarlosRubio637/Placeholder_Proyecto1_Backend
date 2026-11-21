@@ -13,7 +13,7 @@ const input = {
   email: 'ana.lopez@correo.com',
   phone: '7845-1290',
   unitCode: 'K7H2M9QX',
-  password: 'Prueba2026',
+  password: 'ClaveUnitaria2026',
 };
 
 function serviceWith(createResident: UserRepository['createResident']) {

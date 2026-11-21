@@ -14,9 +14,53 @@ Cada rol ve en el menú lateral solo sus opciones. Si alguien abre la ruta de ot
 
 ## Flujos principales
 
+### Módulo 0: Cuentas y roles
+
+#### Crear una cuenta de residente
+
+1. En la pantalla de inicio de sesión, presionar "Crear cuenta" (`/registro`).
+2. Escribir el nombre completo, el correo, el teléfono (formato 0000-0000), el código de unidad y la contraseña dos veces. El código de unidad tiene 8 caracteres en mayúsculas y lo entrega la administración. La contraseña lleva de 8 a 72 caracteres, con al menos una minúscula, una mayúscula y un número.
+3. Presionar "Crear cuenta". La cuenta queda con el rol Residente y ligada a la unidad del código. El sistema regresa al inicio de sesión con el aviso de cuenta creada.
+
+Las cuentas de Administrador y de Personal de seguridad no se crean desde esta pantalla: vienen del script de datos iniciales (H39).
+
+![Formulario de registro de residente](img/h38-registro.png)
+
 ### Módulo 1: Cuotas y pagos
 
-<!-- H1 y H2 (pago de cuotas y estado de cuenta): Carlos. -->
+#### Pagar una cuota (Residente)
+
+1. Abrir "Estado de cuenta" en el menú y presionar "Pagar" en una cuota Pendiente o Morosa.
+2. Revisar el periodo, el concepto, el vencimiento y el monto total.
+3. Escribir el número de tarjeta (16 dígitos), el vencimiento (MM/AA), el código de seguridad (3 dígitos) y el nombre del titular.
+4. Presionar "Pagar cuota". La pasarela es simulada y responde en unos 2 segundos. La tarjeta 4242 4242 4242 4242 se aprueba, la 4000 0000 0000 0002 se rechaza por fondos insuficientes y cualquier otra se rechaza como no reconocida.
+5. Si se aprueba, la cuota pasa a Pagado y se abre el recibo con el número de transacción, la unidad, el titular y los últimos 4 dígitos de la tarjeta. Si se rechaza, la pantalla muestra el motivo y la cuota sigue igual. En los dos casos el residente recibe una notificación.
+
+Volver a enviar el mismo formulario no cobra dos veces: el backend reconoce la llave de idempotencia y devuelve el mismo pago. El sistema guarda solo los últimos 4 dígitos de la tarjeta; el número completo y el código de seguridad no se guardan.
+
+![Formulario de pago de una cuota](img/h1-pagar-cuota.png)
+
+![Recibo de un pago aprobado](img/h1-recibo.png)
+
+#### Consultar el estado de cuenta (Residente)
+
+1. Abrir "Estado de cuenta" en el menú.
+2. Las tarjetas muestran el saldo pendiente, la cantidad de cuotas morosas y el próximo vencimiento de la unidad.
+3. La tabla lista las cuotas de la más reciente a la más antigua, 12 por página, con su periodo, concepto, monto, vencimiento y estado.
+4. Los filtros de año y de estado (Pendiente, Pagado o Moroso) acotan la lista.
+5. "Ver pagos" despliega los intentos de pago de una cuota, aprobados y rechazados, con el enlace a cada recibo.
+
+El residente solo ve la unidad a la que pertenece. Los residentes de una misma unidad ven el mismo estado de cuenta.
+
+![Estado de cuenta de la unidad](img/h2-estado-de-cuenta.png)
+
+#### Consultar una unidad y su código de registro (Administrador)
+
+1. Abrir "Unidades" en el menú, elegir una torre y luego una unidad.
+2. La pantalla muestra el código de registro vigente, los residentes registrados y el estado de cuenta de la unidad en solo lectura.
+3. "Copiar" copia el código para entregarlo a un residente nuevo.
+4. "Regenerar código" pide confirmar y crea un código nuevo. El anterior deja de servir para registrarse; las cuentas ya creadas no cambian.
+
 
 #### Generar las cuotas del mes (Administrador)
 
@@ -48,6 +92,50 @@ El backend corre dos tareas todos los días, en hora de El Salvador:
 - **08:00:** las cuotas Pendiente que vencen en 5 días o menos generan la notificación "Cuota por vencer", una sola vez por cuota.
 
 Las notificaciones aparecen en la campana y en "Notificaciones" del residente, y las cuotas morosas se reflejan en el estado de cuenta y en "Unidades morosas". Para correr las dos tareas sin esperar el horario, el administrador puede usar `POST /api/v1/cuotas/tareas/ejecutar` desde Swagger. Repetirla no duplica cambios ni notificaciones.
+
+### Módulo 2: Reservas de áreas comunes
+
+#### Consultar la disponibilidad (Residente y Administrador)
+
+1. Abrir "Áreas comunes" en el menú. Aparecen las áreas habilitadas, por nombre, con su aforo y su horario.
+2. Elegir un área y una fecha entre hoy y 30 días después.
+3. La pantalla muestra las franjas del día con su estado: Disponible, Reservado, Mantenimiento o Pasado. Las franjas de la propia unidad se marcan como "Reservado por tu unidad".
+4. "Actualizar" vuelve a consultar las franjas sin cambiar la fecha.
+
+El Administrador ve la misma pantalla en `/reservas`, sin la opción de reservar.
+
+![Disponibilidad de un área común](img/h6-disponibilidad.png)
+
+#### Reservar un área (Residente)
+
+1. En la disponibilidad, elegir una franja Disponible.
+2. En la confirmación, revisar el área, la fecha, la franja y las reglas de uso.
+3. Escribir el número de personas (como máximo el aforo del área) y marcar la aceptación de las reglas.
+4. Presionar "Confirmar reserva". El sistema muestra el comprobante con el número de reserva y el residente recibe la notificación "Reserva confirmada".
+
+Una unidad puede tener como máximo 2 reservas activas. Si otra unidad toma la franja antes de confirmar, la pantalla regresa a la disponibilidad con el aviso y las franjas al día.
+
+![Confirmación de una reserva](img/h7-confirmar-reserva.png)
+
+#### Ver y cancelar mis reservas (Residente)
+
+1. Abrir "Mis reservas" en el menú.
+2. La pestaña "Próximas" lista las reservas confirmadas que todavía no empiezan. "Historial" lista las pasadas y las canceladas. Las dos muestran 10 por página.
+3. Cada fila indica el número de reserva, el área, la fecha, la franja, las personas, el estado y quién reservó. Se ven las reservas de toda la unidad.
+4. "Cancelar" aparece solo cuando faltan al menos 24 horas para el inicio. Al confirmar, la reserva pasa a Cancelada, la franja se libera y el residente que la hizo recibe la notificación.
+
+![Mis reservas con la pestaña Próximas](img/h8-mis-reservas.png)
+
+#### Administrar áreas, horarios y bloqueos (Administrador)
+
+1. Abrir "Áreas comunes" en el menú. La tabla lista todas las áreas, habilitadas y deshabilitadas, con su horario, su aforo y sus reservas futuras.
+2. "Nueva área" pide el nombre (3 a 50 caracteres), el aforo (1 a 500 personas), las reglas de uso (opcional, hasta 500 caracteres), la hora de apertura y de cierre en pasos de 30 minutos y la duración de la franja (60 o 120 minutos).
+3. "Editar", en la fila del área, abre la edición: ahí se cambian esos datos o se deshabilita el área. Las áreas no se borran.
+4. En la misma pantalla, "Nuevo bloqueo" cierra el área por mantenimiento entre dos fechas (de hoy en adelante, hasta 90 días) con un motivo de 5 a 200 caracteres.
+5. Si un cambio de horario, la deshabilitación o un bloqueo afecta reservas confirmadas, el sistema indica cuántas se cancelarán y pide "Continuar". Al continuar, esas reservas pasan a Cancelada por la administración y cada residente afectado recibe una notificación con el motivo.
+6. "Eliminar bloqueo" quita el bloqueo. Las reservas que ya canceló no se restauran.
+
+![Administración de áreas comunes](img/h9-areas.png)
 
 ### Módulo 3: Incidencias y mantenimiento
 

@@ -61,6 +61,7 @@ docker run -p 3001:3000 -e API_URL=http://host.docker.internal:3000/api/v1/ cond
 | `NODE_ENV` | Entorno de ejecución. | `development` |
 | `PORT` | Puerto HTTP de la API. Por defecto, 3000. | `3000` |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` y `POSTGRES_PORT` | Los usa docker-compose para crear el contenedor de PostgreSQL y publicar su puerto. | `postgres`, `postgres`, `si_be_boilerplate` y `5432` |
+| `FRONTEND_URL` | Origen que la API permite por CORS, sin barra final. Si son varios, separados por coma. Por defecto, `http://localhost:3001`. | `http://localhost:3001` |
 | `PAYMENT_GATEWAY_DELAY_MS` | Espera de la pasarela de pago simulada, en milisegundos (H1). Por defecto, 2000. | `2000` |
 | `UPLOADS_DIR` | Carpeta donde se guardan las fotos de incidencias. Por defecto, `uploads` en la raíz del proyecto; en docker-compose, `/app/uploads`. | `uploads` |
 

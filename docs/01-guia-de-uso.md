@@ -1,5 +1,3 @@
-<!-- Cada responsable agrega aquí los flujos de sus módulos, con capturas en docs/img/. Borrar este comentario antes de entregar. -->
-
 # Guía de uso
 
 ## Roles
@@ -316,5 +314,3 @@ Una unidad puede tener como máximo 2 reservas activas. Si otra unidad toma la f
 5. Si el reporte supera 5,000 filas, se muestra "El reporte supera 5,000 filas. Reduce el rango.".
 
 ![Primera página del PDF del reporte de morosidad](img/h36-pdf-morosidad.png)
-
-<!-- Módulos 2 a 6, 9 y 10: cada responsable agrega sus flujos con el mismo formato. -->

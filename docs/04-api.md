@@ -1,5 +1,3 @@
-<!-- Cada responsable agrega la tabla de sus módulos con el mismo formato. Borrar este comentario antes de entregar. -->
-
 # API
 
 **Documentación interactiva (Swagger):** https://placeholderproyecto1backend-production.up.railway.app/api/docs

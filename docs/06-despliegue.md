@@ -4,9 +4,9 @@
 
 | Componente | Plataforma | URL | Rama |
 |---|---|---|---|
-| Frontend | POR_COMPLETAR | POR_COMPLETAR | main |
-| Backend | POR_COMPLETAR | POR_COMPLETAR | main |
-| Base de datos | POR_COMPLETAR | (privada) | |
+| Frontend | Vercel | https://placeholder-proyecto1-frontend.vercel.app | main |
+| Backend | Railway | https://placeholderproyecto1backend-production.up.railway.app/api/v1 (Swagger en https://placeholderproyecto1backend-production.up.railway.app/api/docs) | main |
+| Base de datos | PostgreSQL en POR_COMPLETAR | (privada) | |
 
 Los dos repositorios tienen su `Dockerfile`. El `CMD` de la imagen del backend solo arranca `node dist/main.js`; las migraciones se aplican con `npx prisma migrate deploy` antes de arrancarla, como hace el `command` del servicio `api` en `docker-compose.yml`. La imagen del frontend lee `API_URL` al arrancar, así que la misma imagen sirve para local y para producción.
 
@@ -24,13 +24,14 @@ Los datos iniciales (`npm run db:seed`) se cargan una sola vez, contra la base d
 
 | Variable | Dónde se configura |
 |---|---|
-| `DATABASE_URL` | Variables de entorno del servicio del backend |
-| `JWT_SECRET` | Variables de entorno del servicio del backend |
-| `JWT_EXPIRES_IN` | Variables de entorno del servicio del backend |
-| `REFRESH_TOKEN_EXPIRES_IN_DAYS` | Variables de entorno del servicio del backend |
-| `BCRYPT_SALT_ROUNDS` | Variables de entorno del servicio del backend |
-| `NODE_ENV` | Variables de entorno del servicio del backend (`production`) |
-| `PORT` | Variables de entorno del servicio del backend |
-| `PAYMENT_GATEWAY_DELAY_MS` | Variables de entorno del servicio del backend (opcional) |
-| `UPLOADS_DIR` | Variables de entorno del servicio del backend (opcional) |
-| `API_URL` | Variables de entorno del servicio del frontend |
+| `DATABASE_URL` | Variables del servicio del backend en Railway |
+| `JWT_SECRET` | Variables del servicio del backend en Railway |
+| `JWT_EXPIRES_IN` | Variables del servicio del backend en Railway |
+| `REFRESH_TOKEN_EXPIRES_IN_DAYS` | Variables del servicio del backend en Railway |
+| `BCRYPT_SALT_ROUNDS` | Variables del servicio del backend en Railway |
+| `NODE_ENV` | Variables del servicio del backend en Railway (`production`) |
+| `PORT` | Variables del servicio del backend en Railway |
+| `PAYMENT_GATEWAY_DELAY_MS` | Variables del servicio del backend en Railway (opcional) |
+| `UPLOADS_DIR` | Variables del servicio del backend en Railway (opcional) |
+| `FRONTEND_URL` | Variables del servicio del backend en Railway. Origen permitido por CORS: la URL del frontend en Vercel |
+| `API_URL` | Variables de entorno del proyecto en Vercel |

@@ -431,7 +431,7 @@ describe('Estado de cuenta y pago de cuotas (H2, H1)', () => {
           email: 'nueva.h2@condominio.test',
           phone: '7000-1111',
           unitCode: oldCode,
-          password: 'Prueba2026',
+          password: 'Registro2026',
         })
         .expect(404);
       expect(res.message).toBe('El código de unidad no existe.');

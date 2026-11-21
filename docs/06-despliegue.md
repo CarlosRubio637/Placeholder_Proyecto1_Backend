@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Frontend | Vercel | https://placeholder-proyecto1-frontend.vercel.app | main |
 | Backend | Railway | https://placeholderproyecto1backend-production.up.railway.app/api/v1 (Swagger en https://placeholderproyecto1backend-production.up.railway.app/api/docs) | main |
-| Base de datos | PostgreSQL en POR_COMPLETAR | (privada) | |
+| Base de datos | PostgreSQL en Railway | (privada) | |
 
 Los dos repositorios tienen su `Dockerfile`. El `CMD` de la imagen del backend solo arranca `node dist/main.js`; las migraciones se aplican con `npx prisma migrate deploy` antes de arrancarla, como hace el `command` del servicio `api` en `docker-compose.yml`. La imagen del frontend lee `API_URL` al arrancar, así que la misma imagen sirve para local y para producción.
 
@@ -18,7 +18,7 @@ Los dos repositorios tienen su `Dockerfile`. El `CMD` de la imagen del backend s
 4. Fusionar `main` de regreso a `develop` para que las dos ramas queden iguales.
 5. Revisar que Swagger responda en `/api/docs` y que se pueda iniciar sesión en el frontend.
 
-Los datos iniciales (`npm run db:seed`) se cargan una sola vez, contra la base de producción, desde una computadora con la `DATABASE_URL` de producción.
+Los datos iniciales (`npm run db:seed`) se cargan una sola vez, contra la base de producción, desde una computadora con la `DATABASE_URL` de producción y con `SEED_DEMO_PASSWORD` y `SEED_TEST_PASSWORD` definidas. Esas contraseñas no se guardan en el repositorio: las de las cuentas de prueba se entregan en Moodle.
 
 ## Variables de entorno en producción
 

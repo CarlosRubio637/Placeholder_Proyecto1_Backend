@@ -78,7 +78,7 @@ cp .env.example .env
 | `POSTGRES_PORT` | `5432` | Puerto publicado en el host |
 | `DATABASE_URL` | — | **Obligatoria.** Connection string de Prisma |
 | `JWT_SECRET` | — | **Obligatoria.** Mínimo 32 caracteres |
-| `JWT_EXPIRES_IN` | `15m` | Vigencia del access token |
+| `JWT_EXPIRES_IN` | `15m` (el proyecto usa `8h`) | Vigencia del access token |
 | `REFRESH_TOKEN_EXPIRES_IN_DAYS` | `7` | Vigencia del refresh token |
 | `BCRYPT_SALT_ROUNDS` | `12` | Cost factor de bcrypt |
 
@@ -241,11 +241,32 @@ npm run db:reset
 
 ### Seed
 
-[prisma/seed.ts](prisma/seed.ts) crea un usuario de prueba mediante `upsert`, así que se puede correr las veces que haga falta:
+[prisma/seed.ts](prisma/seed.ts) carga los datos iniciales del condominio (H39). Usa `upsert` por código o correo, así que se puede correr las veces que haga falta sin duplicar nada ni pisar cambios hechos al probar.
 
-| Email | Contraseña |
-|---|---|
-| `demo@example.com` | `Demo1234!` |
+- **Torres y unidades:** 3 torres (A, B, C) con 4 pisos de 4 unidades: 48 unidades, de `A-101` a `C-404`, cada una con su código de registro de 8 caracteres.
+- **Responsables de mantenimiento:** Pedro Alvarado (Fontanería), Miguel Torres (Electricidad) y Rosa Méndez (Mantenimiento general).
+- **Áreas comunes:** Salón de eventos, Piscina, Gimnasio y Asador.
+- **Cuentas de prueba**, todas con la contraseña `Prueba2026`:
+
+| Correo | Rol | Nombre | Unidad |
+|---|---|---|---|
+| `admin@condominio.test` | Administrador | Laura Martínez | — |
+| `seguridad1@condominio.test` | Seguridad | Mario Rivas | — |
+| `seguridad2@condominio.test` | Seguridad | José Hernández | — |
+| `residente1@condominio.test` | Residente | Ana Gómez | A-101 |
+| `residente2@condominio.test` | Residente | Luis Gómez | A-101 |
+| `residente3@condominio.test` | Residente | Carmen Flores | A-102 |
+| `residente4@condominio.test` | Residente | Roberto Díaz | B-101 |
+| `residente5@condominio.test` | Residente | Sofía Castillo | B-203 |
+| `residente6@condominio.test` | Residente | Daniel Ramos | C-304 |
+
+También se mantiene la cuenta `demo@example.com` / `Demo1234!` (Administrador) del boilerplate.
+
+Para ver el código de registro de una unidad:
+
+```bash
+docker compose exec postgres psql -U postgres -d si_be_boilerplate -c "select code, registration_code from units order by code"
+```
 
 ---
 
@@ -432,6 +453,12 @@ Definidos en [tsconfig.json](tsconfig.json):
 |---|---|
 | `@Auth`, `@Auth/*` | `src/auth/index.ts`, `src/auth/*/index.ts` |
 | `@Users`, `@Users/*` | `src/users/…` |
+| `@Notifications`, `@Notifications/*` | `src/notifications/…` |
+| `@Incidents`, `@Incidents/*` | `src/incidents/…` |
+| `@Reservations`, `@Reservations/*` | `src/reservations/index.ts`, `src/reservations/*/index.ts` |
+| `@Fees`, `@Fees/*` | `src/fees/index.ts`, `src/fees/*/index.ts` |
+| `@Announcements`, `@Announcements/*` | `src/announcements/…` |
+| `@Directory`, `@Directory/*` | `src/directory/…` |
 | `@Health`, `@Health/*` | `src/health/…` |
 | `@Prisma`, `@Prisma/*` | `src/prisma/…` |
 | `@Common/*` | `src/common/*/index.ts` |
@@ -514,7 +541,7 @@ Cada carpeta de capa incluye un `index.ts` que reexporta sus elementos, de modo 
 
 ---
 
-## Scripts disponibles
+## Scripts disponibles.
 
 | Script | Descripción |
 |---|---|
@@ -525,7 +552,7 @@ Cada carpeta de capa incluye un `index.ts` que reexporta sus elementos, de modo 
 | `lint` | Corre oxlint con chequeos type-aware |
 | `format` | Formatea con Prettier |
 | `test` | Tests unitarios |
-| `test:e2e` | Tests end-to-end |
+| `test:e2e` | Pruebas de integración contra una base propia (`si_be_test`), que se recrea en cada corrida; solo necesita el Postgres de Docker |
 | `test:cov` | Tests con reporte de cobertura |
 | `prisma:generate` | Regenera el cliente de Prisma |
 | `prisma:migrate` | Crea y aplica una migración (desarrollo) |

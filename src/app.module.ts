@@ -2,11 +2,27 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from '@Auth';
-import { JwtAuthGuard } from '@Auth/guards';
+import { JwtAuthGuard, RolesGuard } from '@Auth/guards';
 import { HealthModule } from '@Health';
 import { PrismaModule } from '@Prisma';
 import { UsersModule } from '@Users';
+import { NotificationsModule } from '@Notifications';
+import { IncidentsModule } from '@Incidents';
+import { ReservationsModule } from '@Reservations';
+import { DirectoryModule } from '@Directory';
+import { FeesModule } from '@Fees';
+import { OverdueUnitsModule } from './fees/overdue-units/overdue-units.module.js';
+import { AnnouncementsModule } from '@Announcements';
 import { validateEnv } from '@Config';
+import { UnitsModule } from './units/units.module.js';
+import { TowersModule } from './towers/towers.module.js';
+import { PackagesModule } from './packages/packages.module.js';
+import { VisitsModule } from './visits/visits.module.js';
+import { AssembliesModule } from './admin/assemblies/assemblies.module.js';
+import { ReportsModule } from './admin/reports/reports.module.js';
+import { ScheduleModule } from '@nestjs/schedule';
+import { VotingModule } from './voting/voting.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
 
 @Module({
   imports: [
@@ -19,13 +35,36 @@ import { validateEnv } from '@Config';
     PrismaModule,
     HealthModule,
     UsersModule,
+    NotificationsModule,
+    IncidentsModule,
+    ReservationsModule,
+    FeesModule,
+    PaymentsModule,
+    OverdueUnitsModule,
+    AnnouncementsModule,
     AuthModule,
+    UnitsModule,
+    TowersModule,
+    PackagesModule,
+    VisitsModule,
+    AssembliesModule,
+    ReportsModule,
+    VotingModule,
+    DirectoryModule,
+    ScheduleModule.forRoot(),
   ],
   providers: [
     {
       // Todo cerrado por defecto: las rutas públicas se abren con @Public().
       provide: APP_GUARD,
       useExisting: JwtAuthGuard,
+    },
+    {
+      // Va después de JwtAuthGuard (los guards globales corren en el orden en
+      // que se registran): necesita el usuario que ese guard carga en el
+      // request. Restringe por rol las rutas marcadas con @Roles(...).
+      provide: APP_GUARD,
+      useExisting: RolesGuard,
     },
   ],
 })

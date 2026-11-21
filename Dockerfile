@@ -58,6 +58,11 @@ COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 # cliente generado desde src/, no desde dist/.
 COPY --from=builder /app/src/generated ./src/generated
 
+# Carpeta de archivos subidos (fotos de incidencias, H10). Tiene que ser del
+# usuario `node`, que es quien escribe en ella. Montar un volumen aquí para que
+# las fotos sobrevivan a un rebuild del contenedor.
+RUN mkdir -p /app/uploads && chown node:node /app/uploads
+
 # La imagen de Node ya trae el usuario `node` sin privilegios.
 USER node
 

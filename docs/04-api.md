@@ -41,11 +41,31 @@ Todas las rutas llevan el prefijo `/api/v1` y piden `Authorization: Bearer <toke
 
 Las tareas de H5 también corren solas todos los días, en hora de El Salvador: el paso a Moroso a las 00:05 y los recordatorios a las 08:00.
 
+### Módulo 3: Incidencias y mantenimiento
+
+| Método | Ruta | Descripción | Roles |
+|---|---|---|---|
+| POST | /api/v1/incidencias | Registra una incidencia con título (5 a 80 caracteres), descripción (10 a 1,000), ubicación, referencia opcional y de 1 a 3 fotos JPG o PNG de hasta 5 MB, en `multipart/form-data`. Queda Pendiente y con prioridad Media (H10) | Residente |
+| GET | /api/v1/incidencias/mias | Incidencias de la unidad del residente, la más reciente primero (H11) | Residente |
+| GET | /api/v1/incidencias/:id | Detalle con fotos, responsable e historial. Una incidencia de otra unidad responde 404 (H11) | Residente, Administrador |
+| GET | /api/v1/incidencias/fotos/:fotoId | Archivo de una fotografía de la incidencia (H10, H11) | Residente, Administrador |
+| GET | /api/v1/admin/incidencias | Todas las incidencias, por prioridad (Alta, Media, Baja) y antigüedad. Filtros `status`, `priority`, `location`, `assigneeId` y `search`, 20 por página (H12) | Administrador |
+| GET | /api/v1/admin/responsables | Responsables de mantenimiento activos (H12) | Administrador |
+| PATCH | /api/v1/admin/incidencias/:id | Cambia la prioridad o el responsable y guarda el evento en el historial. Una incidencia Resuelto responde 409 (H12) | Administrador |
+| POST | /api/v1/admin/incidencias/:id/estado | Avanza el estado (Pendiente → En proceso → Resuelto, o reabre) con una observación de 10 a 500 caracteres y notifica al residente. Sin responsable o con el estado ya cambiado responde 409 (H13) | Administrador |
+
 ### Módulo 4: Control de acceso de visitas
 
 | Método | Ruta | Descripción | Roles |
 |---|---|---|---|
 | POST | /api/v1/visitas | Preautoriza un visitante para una fecha de hoy a 30 días, con hora estimada en pasos de 15 minutos. Devuelve un código de 6 caracteres válido ese día de 06:00 a 22:00. Un visitante con autorización para esa fecha responde 409 (H14) | Residente |
+| GET | /api/v1/visitas/mias | Visitas de la unidad en dos pestañas: `activas` (pendientes de autorización y autorizadas) e `historial`, 10 por página (H15) | Residente |
+| PATCH | /api/v1/visitas/:id/cancelar | Cancela una visita Autorizada. Otro estado responde 409 (H15) | Residente |
+| POST | /api/v1/visitas/:id/respuesta | Aprueba o rechaza (con motivo opcional) una solicitud de portería y notifica a seguridad. Sin respuesta en 15 minutos, la solicitud se rechaza sola. Si otro residente ya respondió, 409 (H15) | Residente |
+| GET | /api/v1/seguridad/visitas/buscar | Busca visitas de hoy por código de 6 caracteres o número de documento (H16) | Personal de seguridad |
+| POST | /api/v1/seguridad/visitas/solicitudes | Pide autorización a la unidad para un visitante sin aviso y notifica a sus residentes. Una unidad sin residentes o fuera de 06:00 a 22:00 responde 409 (H16) | Personal de seguridad |
+| GET | /api/v1/seguridad/visitas/solicitudes | Solicitudes de hoy con su estado, la más reciente primero (H16) | Personal de seguridad |
+| POST | /api/v1/seguridad/visitas/:id/entrada | Registra la entrada de una visita Autorizada y vigente; pasa a Dentro. Fuera de vigencia, en otro estado o con el visitante ya dentro responde 409 (H16) | Personal de seguridad |
 
 ### Módulo 7: Anuncios y comunicados
 

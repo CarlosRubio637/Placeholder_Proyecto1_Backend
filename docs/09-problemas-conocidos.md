@@ -1,5 +1,3 @@
-<!-- Cada responsable agrega las filas de sus historias. Borrar este comentario antes de entregar. -->
-
 # Problemas conocidos
 
 | Problema | Cómo se reproduce | Impacto | Historia relacionada |

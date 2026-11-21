@@ -29,10 +29,16 @@ Todas las rutas llevan el prefijo `/api/v1` y piden `Authorization: Bearer <toke
 
 ### Módulo 1: Cuotas y pagos
 
-<!-- H1 y H2: Carlos. -->
-
 | Método | Ruta | Descripción | Roles |
 |---|---|---|---|
+| GET | /api/v1/estado-cuenta | Estado de cuenta de la unidad del residente: saldo pendiente, cuotas morosas, próximo vencimiento y cuotas del periodo más reciente al más antiguo. Filtros `year` y `status`, 12 por página (máximo 50). La unidad sale del token (H2) | Residente |
+| GET | /api/v1/cuotas/:cuotaId | Cuota de la unidad del residente, para mostrarla antes de pagar. Una cuota de otra unidad responde 404 (H1) | Residente |
+| POST | /api/v1/cuotas/:cuotaId/pagos | Paga la cuota con la pasarela simulada. Recibe `idempotencyKey`, `cardNumber`, `expMonth`, `expYear`, `cvv` y `holderName`. Responde 201 con `status` APROBADO o RECHAZADO; con una `idempotencyKey` ya usada en esa cuota responde 200 con el mismo pago. Una cuota ya pagada responde 409 (H1) | Residente |
+| GET | /api/v1/cuotas/:cuotaId/pagos | Intentos de pago de una cuota, del más reciente al más antiguo (H2) | Residente, Administrador |
+| GET | /api/v1/pagos/:pagoId | Recibo de un pago. El residente solo ve los de su unidad (H1) | Residente, Administrador |
+| GET | /api/v1/unidades/:unitId/estado-cuenta | Estado de cuenta de cualquier unidad, en solo lectura, con los mismos filtros (H2) | Administrador |
+| GET | /api/v1/admin/unidades/:unitId | Unidad con su torre, su código de registro y sus residentes (H2) | Administrador |
+| POST | /api/v1/admin/unidades/:unitId/codigo-registro | Regenera el código de registro de la unidad. El anterior deja de servir (H2) | Administrador |
 | GET | /api/v1/cuotas/generaciones/vista-previa | Unidades activas del periodo y cuántas recibirían cuota (H3) | Administrador |
 | POST | /api/v1/cuotas/generaciones | Genera las cuotas del periodo para las unidades activas; omite las que ya tienen cuota de ese periodo (H3) | Administrador |
 | GET | /api/v1/cuotas/generaciones | Historial de generaciones, la más reciente primero (H3) | Administrador |
@@ -40,6 +46,25 @@ Todas las rutas llevan el prefijo `/api/v1` y piden `Authorization: Bearer <toke
 | POST | /api/v1/cuotas/tareas/ejecutar | Corre en el momento las tareas de mora y de recordatorios, con las mismas reglas que el horario. Responde `markedOverdue` y `remindersSent` (H5) | Administrador |
 
 Las tareas de H5 también corren solas todos los días, en hora de El Salvador: el paso a Moroso a las 00:05 y los recordatorios a las 08:00.
+
+La pasarela de H1 es simulada y responde después de `PAYMENT_GATEWAY_DELAY_MS` milisegundos (2000 por defecto). La tarjeta `4242424242424242` se aprueba, la `4000000000000002` se rechaza por fondos insuficientes y cualquier otra se rechaza como no reconocida. Solo se guardan los últimos 4 dígitos de la tarjeta.
+
+### Módulo 2: Reservas de áreas comunes
+
+| Método | Ruta | Descripción | Roles |
+|---|---|---|---|
+| GET | /api/v1/areas | Áreas habilitadas, por nombre, con aforo, horario, duración de la franja y reglas (H6, H7) | Residente, Administrador |
+| GET | /api/v1/areas/:areaId/disponibilidad | Franjas del área en `date` (de hoy a 30 días) con su estado: DISPONIBLE, RESERVADO, MANTENIMIENTO o PASADO, y si la reservó la unidad del usuario (H6) | Residente, Administrador |
+| POST | /api/v1/reservas | Reserva una franja para la unidad del residente. Recibe `areaId`, `date`, `startTime`, `attendees` y `acceptRules: true`. Franja ocupada, área deshabilitada o bloqueada, o la unidad con 2 reservas activas responde 409 (H7) | Residente |
+| GET | /api/v1/reservas/mias | Reservas de la unidad. Filtro `tab` (`proximas` o `historial`), 10 por página (máximo 50). Cada fila indica si se puede cancelar (H8) | Residente |
+| PATCH | /api/v1/reservas/:id/cancelar | Cancela una reserva de la unidad. Con menos de 24 horas de anticipación o ya cancelada responde 409 (H8) | Residente |
+| GET | /api/v1/admin/areas | Todas las áreas, con sus reservas futuras y sus bloqueos actuales y futuros (H9) | Administrador |
+| POST | /api/v1/admin/areas | Crea un área. Un nombre repetido responde 409 (H9) | Administrador |
+| PATCH | /api/v1/admin/areas/:id | Edita un área o la deshabilita con `isActive: false` (H9) | Administrador |
+| POST | /api/v1/admin/areas/:id/bloqueos | Bloquea el área por mantenimiento entre `startDate` y `endDate` (hasta 90 días) con un `reason` (H9) | Administrador |
+| DELETE | /api/v1/admin/areas/:id/bloqueos/:bloqueoId | Elimina un bloqueo. Responde 204 y no restaura las reservas canceladas (H9) | Administrador |
+
+Si la edición o el bloqueo cancela reservas confirmadas, el backend responde 409 con `code: "RESERVAS_AFECTADAS"` y `affectedCount`. Para aplicarlo hay que repetir la petición con `confirmCancellations: true`. Las reservas afectadas pasan a CANCELADA_ADMIN y cada residente recibe una notificación con el motivo.
 
 ### Módulo 3: Incidencias y mantenimiento
 

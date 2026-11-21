@@ -2,12 +2,10 @@
 
 ## Vista general
 
-<!-- Carlos: ajustar las plataformas de despliegue del diagrama cuando estén definidas. -->
-
 ```mermaid
 flowchart LR
-    U[Navegador] -->|HTTPS| FE[Frontend Next.js<br/>Server Components y Server Actions]
-    FE -->|HTTPS / JSON<br/>Bearer token| BE[Backend NestJS<br/>/api/v1]
+    U[Navegador] -->|HTTPS| FE[Frontend Next.js en Vercel<br/>Server Components y Server Actions]
+    FE -->|HTTPS / JSON<br/>Bearer token| BE[Backend NestJS en Railway<br/>/api/v1 y /api/docs]
     BE --> DB[(PostgreSQL)]
 ```
 

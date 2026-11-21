@@ -11,13 +11,13 @@ Este repositorio contiene el backend (API REST) y la documentación completa del
 
 ## Ambiente desplegado
 
-<!-- Carlos: reemplazar las dos URL antes de entregar. -->
-
 | Componente | URL |
 |---|---|
-| Frontend | [URL del frontend] |
-| API | [URL del backend]/api/v1 |
-| Documentación de la API (Swagger) | [URL del backend]/api/docs |
+| Frontend | https://placeholder-proyecto1-frontend.vercel.app |
+| API | https://placeholderproyecto1backend-production.up.railway.app/api/v1 |
+| Documentación de la API (Swagger) | https://placeholderproyecto1backend-production.up.railway.app/api/docs |
+
+El backend está en Railway y el frontend en Vercel, los dos desplegados desde `main`.
 
 Los usuarios de prueba (uno por rol) se entregan en Moodle, no en este repositorio.
 

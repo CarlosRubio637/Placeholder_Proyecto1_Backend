@@ -11,6 +11,15 @@ async function bootstrap() {
 
   configureApp(app);
 
+  // CORS: solo el frontend desplegado (FRONTEND_URL, separadas por coma si
+  // son varias). Sin la variable, se permite el frontend local en el 3001.
+  app.enableCors({
+    origin: (process.env.FRONTEND_URL ?? 'http://localhost:3001')
+      .split(',')
+      .map((url) => url.trim().replace(/\/$/, ''))
+      .filter((url) => url.length > 0),
+  });
+
   app.enableShutdownHooks();
 
   const swaggerConfig = new DocumentBuilder()

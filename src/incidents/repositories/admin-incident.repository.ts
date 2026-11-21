@@ -47,6 +47,28 @@ export interface ManagementChange {
 /** Errores de dominio que el servicio traduce a HTTP. */
 export class IncidentNotFoundError extends Error {}
 export class IncidentResolvedError extends Error {}
+/** H13: la transición no está en la tabla de estados. */
+export class TransitionNotAllowedError extends Error {}
+/** H13: no se puede iniciar la atención sin responsable. */
+export class AssigneeRequiredError extends Error {}
+/** H13: el estado ya no es el que vio el administrador. */
+export class StatusChangedError extends Error {}
+
+/** Tabla de estados de H13: desde → hacia. */
+export const ALLOWED_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
+  PENDIENTE: [IncidentStatus.EN_PROCESO],
+  EN_PROCESO: [IncidentStatus.RESUELTO],
+  RESUELTO: [IncidentStatus.EN_PROCESO],
+};
+
+export interface StatusChange {
+  incidentId: string;
+  actorId: string;
+  expectedStatus: IncidentStatus;
+  toStatus: IncidentStatus;
+  note: string;
+  now: Date;
+}
 
 /** Consultas y cambios de la bandeja del administrador (H12). */
 @Injectable()
@@ -186,6 +208,96 @@ export class AdminIncidentRepository {
               },
             });
       return { incident, event };
+    });
+  }
+
+  /**
+   * Cambia el estado (H13) y guarda su evento en una transacción. La
+   * actualización va condicionada por `status = expectedStatus`: si otro
+   * administrador lo cambió antes, no afecta filas y responde que cambió.
+   */
+  applyStatusChange(change: StatusChange) {
+    return this.prisma.$transaction(async (tx) => {
+      // Mismo candado que H12: nadie quita el responsable entre la revisión
+      // y el cambio a En proceso.
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM incidents WHERE id = ${change.incidentId}::uuid FOR UPDATE`;
+      if (locked.length === 0) throw new IncidentNotFoundError();
+
+      const current = await tx.incident.findUnique({
+        where: { id: change.incidentId },
+        select: {
+          number: true,
+          title: true,
+          reporterId: true,
+          assigneeId: true,
+          status: true,
+        },
+      });
+      if (!current) throw new IncidentNotFoundError();
+      if (
+        !ALLOWED_TRANSITIONS[change.expectedStatus].includes(change.toStatus)
+      ) {
+        throw new TransitionNotAllowedError();
+      }
+      if (current.status !== change.expectedStatus) {
+        throw new StatusChangedError();
+      }
+      if (
+        change.toStatus === IncidentStatus.EN_PROCESO &&
+        !current.assigneeId
+      ) {
+        throw new AssigneeRequiredError();
+      }
+
+      const { count } = await tx.incident.updateMany({
+        where: { id: change.incidentId, status: change.expectedStatus },
+        data: {
+          status: change.toStatus,
+          // Resuelto guarda el momento; reabrir lo borra.
+          resolvedAt:
+            change.toStatus === IncidentStatus.RESUELTO ? change.now : null,
+        },
+      });
+      if (count === 0) throw new StatusChangedError();
+
+      const event = await tx.incidentEvent.create({
+        data: {
+          incidentId: change.incidentId,
+          type: IncidentEventType.ESTADO,
+          fromStatus: change.expectedStatus,
+          toStatus: change.toStatus,
+          note: change.note,
+          authorId: change.actorId,
+          createdAt: change.now,
+        },
+        select: {
+          id: true,
+          fromStatus: true,
+          toStatus: true,
+          note: true,
+          createdAt: true,
+        },
+      });
+
+      return {
+        incident: {
+          id: change.incidentId,
+          status: change.toStatus,
+          resolvedAt:
+            change.toStatus === IncidentStatus.RESUELTO ? change.now : null,
+        },
+        event: {
+          id: event.id,
+          fromStatus: event.fromStatus ?? change.expectedStatus,
+          toStatus: event.toStatus ?? change.toStatus,
+          note: event.note ?? change.note,
+          createdAt: event.createdAt,
+        },
+        reporterId: current.reporterId,
+        number: current.number,
+        title: current.title,
+      };
     });
   }
 }

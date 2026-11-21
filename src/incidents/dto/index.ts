@@ -3,3 +3,4 @@ export * from './incident-response.dto.js';
 export * from './incident-detail.dto.js';
 export * from './list-my-incidents.query.js';
 export * from './admin-incidents.dto.js';
+export * from './change-status.dto.js';

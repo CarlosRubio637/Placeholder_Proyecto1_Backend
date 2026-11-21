@@ -39,8 +39,8 @@ async function errorOf(input: unknown) {
   return error as NotificationValidationError;
 }
 
-describe('NotificationsService.send', () => {
-  it('manda al repositorio los datos normalizados y devuelve { created }', async () => {
+describe('H30. Servicio interno de envío de avisos para los demás módulos', () => {
+  it('AC2: recibe destinatario, título, mensaje, módulo y referencia, y devuelve { created }', async () => {
     const { service, createForRecipient } = setup(1);
 
     const result = await service.send({ ...valid, title: '  Hola  ' });
@@ -56,7 +56,7 @@ describe('NotificationsService.send', () => {
     });
   });
 
-  it('quita ids repetidos: un usuario recibe una sola notificación por envío', async () => {
+  it('AC3: quita ids repetidos: un usuario recibe una sola notificación por envío', async () => {
     const { service, createForRecipient } = setup(2);
     await service.send({
       ...valid,
@@ -68,7 +68,7 @@ describe('NotificationsService.send', () => {
     ]);
   });
 
-  it('la referencia es opcional', async () => {
+  it('AC2: la referencia es opcional', async () => {
     const { service, createForRecipient } = setup();
     await service.send({ ...valid, reference: undefined });
     expect(createForRecipient.mock.calls[0][0]).toMatchObject({
@@ -77,7 +77,7 @@ describe('NotificationsService.send', () => {
     });
   });
 
-  it('TODOS acepta ids vacío u omitido', async () => {
+  it('AC2: en TODOS los ids van vacíos u omitidos', async () => {
     const { service, createForRecipient } = setup(10);
     await expect(
       service.send({ ...valid, recipient: { type: 'TODOS', ids: [] } }),
@@ -88,7 +88,7 @@ describe('NotificationsService.send', () => {
     expect(createForRecipient).toHaveBeenCalledTimes(2);
   });
 
-  it('el error tiene la forma { code, message, field } del contrato', async () => {
+  it('AC5: el error tiene la forma { code, message, field } del contrato y no crea nada', async () => {
     const error = await errorOf({ ...valid, title: '' });
     expect(error.toJSON()).toEqual({
       code: 'NOTIFICATION_INVALID',
@@ -169,11 +169,11 @@ describe('NotificationsService.send', () => {
       { ...valid, reference: { type: 'incident', id: '42' } },
       'reference.id',
     ],
-  ])('rechaza el envío si hay %s (campo %s)', async (_caso, input, field) => {
+  ])('AC5: rechaza el envío si hay %s (campo %s)', async (_caso, input, field) => {
     expect((await errorOf(input)).field).toBe(field);
   });
 
-  it('acepta los largos máximos exactos', async () => {
+  it('AC5: acepta los largos máximos exactos', async () => {
     const { service } = setup();
     await expect(
       service.send({
@@ -189,7 +189,7 @@ describe('NotificationsService.send', () => {
     ).resolves.toEqual({ created: 1 });
   });
 
-  it('deja pasar el error del repositorio cuando un id no existe', async () => {
+  it('AC5: si un id no existe, el error del repositorio llega con el campo', async () => {
     const { service, createForRecipient } = setup();
     createForRecipient.mockRejectedValue(
       new NotificationValidationError('recipient.ids', 'No existen…'),

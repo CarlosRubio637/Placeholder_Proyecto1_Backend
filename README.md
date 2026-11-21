@@ -11,13 +11,11 @@ Este repositorio contiene el backend (API REST) y la documentación completa del
 
 ## Ambiente desplegado
 
-<!-- Carlos: reemplazar las dos URL antes de entregar. -->
-
 | Componente | URL |
 |---|---|
-| Frontend | [URL del frontend] |
-| API | [URL del backend]/api/v1 |
-| Documentación de la API (Swagger) | [URL del backend]/api/docs |
+| Frontend | https://placeholder-proyecto1-frontend.vercel.app |
+| API | https://placeholderproyecto1backend-production.up.railway.app/api/v1 |
+| Documentación de la API (Swagger) | https://placeholderproyecto1backend-production.up.railway.app/api/docs |
 
 Los usuarios de prueba (uno por rol) se entregan en Moodle, no en este repositorio.
 
@@ -48,6 +46,8 @@ Las 39 historias están terminadas. El detalle de cada una, con su card y sus PR
 El backend tiene un módulo de NestJS por módulo del sistema. Todas las rutas llevan el prefijo `/api/v1`, y los roles se validan con un guard global.
 
 ## Inicio rápido
+
+Después de copiar el `.env`, completar `JWT_SECRET`, `SEED_DEMO_PASSWORD` y `SEED_TEST_PASSWORD`. Sin las dos últimas, el seed se detiene.
 
 ```bash
 cp .env.example .env

@@ -5,9 +5,9 @@ import request from 'supertest';
 import { AppModule } from '../../src/app.module.js';
 import { API_PREFIX, configureApp } from '../../src/app.setup.js';
 import { PrismaService } from '../../src/prisma/services/index.js';
-import { TEST_DATABASE, testEnv } from './test-env.js';
+import { TEST_ACCOUNTS_PASSWORD, TEST_DATABASE, testEnv } from './test-env.js';
 
-export const PASSWORD = 'Prueba2026';
+export const PASSWORD = TEST_ACCOUNTS_PASSWORD;
 
 /** Tablas que llena el seed: se conservan entre flujos. */
 const SEED_TABLES = [

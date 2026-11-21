@@ -15,7 +15,17 @@ import {
 } from '../src/common/time/condominium-time.js';
 
 const DEMO_EMAIL = 'demo@example.com';
-const DEMO_PASSWORD = 'Demo1234!';
+const DEMO_PASSWORD = requiredEnv('SEED_DEMO_PASSWORD');
+
+function requiredEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `Falta ${name} en el entorno: el seed no crea cuentas sin contraseña (ver .env.example).`,
+    );
+  }
+  return value;
+}
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -30,7 +40,7 @@ async function main() {
     create: { email: DEMO_EMAIL, passwordHash, role: 'ADMINISTRADOR' },
   });
 
-  console.log(`Usuario demo listo: ${user.email} / ${DEMO_PASSWORD}`);
+  console.log(`Usuario demo listo: ${user.email}`);
 
   await seedTowersAndUnits();
   await seedTestAccounts();
@@ -100,7 +110,7 @@ async function seedTowersAndUnits() {
 // --- H39 parte 2: cuentas de prueba, responsables y áreas --------------------
 
 /** Contraseña de todas las cuentas de prueba (H39). */
-const TEST_PASSWORD = 'Prueba2026';
+const TEST_PASSWORD = requiredEnv('SEED_TEST_PASSWORD');
 
 /**
  * Igual que toSearchName de src/users/services/users.service.ts (el seed corre
@@ -242,7 +252,7 @@ async function seedTestAccounts() {
   }
 
   console.log(
-    `Cuentas de prueba listas: ${TEST_ACCOUNTS.length} (contraseña ${TEST_PASSWORD})`,
+    `Cuentas de prueba listas: ${TEST_ACCOUNTS.length}`,
   );
 }
 

@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { parse } from 'dotenv';
 
 export const TEST_DATABASE = 'si_be_test';
+export const TEST_ACCOUNTS_PASSWORD = 'Integracion2026';
 
 /**
  * Variables de las pruebas de integración. Salen del .env de cada quien, así
@@ -25,6 +26,8 @@ function buildTestEnv(): Record<string, string> {
     PAYMENT_GATEWAY_DELAY_MS: '0',
     DATABASE_URL: url.toString(),
     UPLOADS_DIR: join(tmpdir(), 'si_be_test_uploads'),
+    SEED_DEMO_PASSWORD: TEST_ACCOUNTS_PASSWORD,
+    SEED_TEST_PASSWORD: TEST_ACCOUNTS_PASSWORD,
   };
 }
 

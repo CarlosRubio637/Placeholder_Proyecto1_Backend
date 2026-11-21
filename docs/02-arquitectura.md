@@ -6,7 +6,7 @@
 flowchart LR
     U[Navegador] -->|HTTPS| FE[Frontend Next.js en Vercel<br/>Server Components y Server Actions]
     FE -->|HTTPS / JSON<br/>Bearer token| BE[Backend NestJS en Railway<br/>/api/v1 y /api/docs]
-    BE --> DB[(PostgreSQL)]
+    BE --> DB[(PostgreSQL en Railway)]
 ```
 
 El navegador solo habla con el servidor de Next. Las páginas se arman en el servidor y las llamadas al backend salen de ahí, con el token de la sesión. La API no se llama desde el navegador.

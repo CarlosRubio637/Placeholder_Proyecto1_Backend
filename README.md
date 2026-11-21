@@ -17,7 +17,7 @@ Este repositorio contiene el backend (API REST) y la documentación completa del
 | API | https://placeholderproyecto1backend-production.up.railway.app/api/v1 |
 | Documentación de la API (Swagger) | https://placeholderproyecto1backend-production.up.railway.app/api/docs |
 
-El backend está en Railway y el frontend en Vercel, los dos desplegados desde `main`.
+El backend y la base de datos PostgreSQL están en Railway y el frontend en Vercel. Los dos servicios se despliegan desde `main`.
 
 Los usuarios de prueba (uno por rol) se entregan en Moodle, no en este repositorio.
 

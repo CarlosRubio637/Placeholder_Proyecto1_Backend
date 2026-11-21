@@ -6,7 +6,7 @@
 |---|---|---|---|
 | Frontend | Vercel | https://placeholder-proyecto1-frontend.vercel.app | main |
 | Backend | Railway | https://placeholderproyecto1backend-production.up.railway.app/api/v1 (Swagger en https://placeholderproyecto1backend-production.up.railway.app/api/docs) | main |
-| Base de datos | PostgreSQL en POR_COMPLETAR | (privada) | |
+| Base de datos | PostgreSQL en Railway | (privada) | |
 
 Los dos repositorios tienen su `Dockerfile`. El `CMD` de la imagen del backend solo arranca `node dist/main.js`; las migraciones se aplican con `npx prisma migrate deploy` antes de arrancarla, como hace el `command` del servicio `api` en `docker-compose.yml`. La imagen del frontend lee `API_URL` al arrancar, así que la misma imagen sirve para local y para producción.
 

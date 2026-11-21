@@ -49,6 +49,36 @@ El backend corre dos tareas todos los días, en hora de El Salvador:
 
 Las notificaciones aparecen en la campana y en "Notificaciones" del residente, y las cuotas morosas se reflejan en el estado de cuenta y en "Unidades morosas". Para correr las dos tareas sin esperar el horario, el administrador puede usar `POST /api/v1/cuotas/tareas/ejecutar` desde Swagger. Repetirla no duplica cambios ni notificaciones.
 
+### Módulo 3: Incidencias y mantenimiento
+
+#### Reportar una incidencia (Residente)
+
+1. Abrir "Mis incidencias" y presionar "Reportar incidencia".
+2. Escribir el título (5 a 80 caracteres) y la descripción del problema (10 a 1,000 caracteres).
+3. Elegir la ubicación (una torre o un área común) y, si hace falta, escribir una referencia, por ejemplo "Piso 3, pasillo norte".
+4. Adjuntar de 1 a 3 fotografías JPG o PNG de hasta 5 MB cada una y presionar "Registrar".
+5. El sistema muestra el número de la incidencia. Queda en estado Pendiente y con prioridad Media.
+
+#### Dar seguimiento a mis incidencias (Residente)
+
+1. Abrir "Mis incidencias". La lista muestra las incidencias de la unidad, de la más reciente a la más antigua, con su estado.
+2. Al abrir una incidencia se ven sus fotos, el responsable asignado y el historial: cada cambio de estado, prioridad o responsable con su fecha, hora y observación.
+3. Cada cambio de estado también llega como notificación a la campana.
+
+#### Priorizar y asignar incidencias (Administrador)
+
+1. Abrir "Incidencias" en el menú. La bandeja muestra todas las incidencias ordenadas por prioridad (Alta, Media, Baja) y, dentro de cada una, la más antigua primero, con los días que lleva abierta.
+2. Para acotar la lista, filtrar por estado, prioridad, ubicación o responsable, o buscar por número o título. La lista se actualiza sola cada 60 segundos.
+3. Abrir una incidencia y, en el panel "Gestión", cambiar la prioridad o elegir un responsable de mantenimiento. Presionar "Guardar": el sistema muestra "Cambios guardados" y el historial agrega el cambio.
+
+#### Atender una incidencia hasta resolverla (Administrador)
+
+1. En el detalle de la incidencia, con un responsable asignado, presionar "Iniciar atención".
+2. Escribir una observación de 10 a 500 caracteres con el trabajo que inicia y confirmar. La incidencia pasa a En proceso.
+3. Cuando el trabajo termina, presionar "Marcar como resuelta", escribir las acciones realizadas y confirmar.
+4. Si el problema vuelve, "Reabrir" la regresa a En proceso con el motivo de la reapertura.
+5. En cada cambio, el residente que la reportó recibe una notificación con el nuevo estado y la observación.
+
 ### Módulo 4: Control de acceso de visitas
 
 #### Preautorizar una visita (Residente)
@@ -62,6 +92,21 @@ Las notificaciones aparecen en la campana y en "Notificaciones" del residente, y
 ![Formulario para autorizar una visita](img/h14-autorizar-visita.png)
 
 ![Visita autorizada con su código](img/h14-visita-autorizada.png)
+
+#### Ver mis visitas, cancelar y responder solicitudes (Residente)
+
+1. Abrir "Mis visitas". La pestaña "Activas" muestra primero las solicitudes de portería que esperan respuesta y después las visitas autorizadas de hoy en adelante. "Historial" muestra las demás.
+2. Para cancelar una autorización, presionar "Cancelar" en la visita y confirmar. El código deja de servir.
+3. Cuando un visitante llega sin aviso, el residente recibe la notificación "Visitante en portería" y la visita aparece con el aviso "Seguridad espera tu respuesta" y los minutos que quedan.
+4. Presionar "Aprobar" o "Rechazar" (con un motivo opcional). Seguridad recibe la respuesta al instante. Si nadie de la unidad responde en 15 minutos, la solicitud se rechaza sola.
+
+#### Registrar la entrada de un visitante (Personal de seguridad)
+
+1. Abrir "Entradas" en el menú.
+2. Escribir el código de 6 caracteres que trae el visitante o su número de documento y presionar "Buscar".
+3. Si la autorización está vigente, presionar "Registrar entrada". El sistema muestra "Entrada registrada a las HH:mm" y el visitante aparece en "Quién está dentro".
+4. Si el visitante no tiene autorización, presionar "Visitante sin autorización", llenar su nombre, documento, torre, unidad y motivo, y presionar "Enviar solicitud". Los residentes de la unidad reciben la notificación.
+5. La solicitud queda en "Esperando respuesta", que se actualiza cada 15 segundos. Si el residente la aprueba, aparece "Aprobada" y el botón "Registrar entrada"; si la rechaza o pasan 15 minutos, aparece "Rechazada" con el motivo.
 
 ### Módulo 7: Anuncios y comunicados
 

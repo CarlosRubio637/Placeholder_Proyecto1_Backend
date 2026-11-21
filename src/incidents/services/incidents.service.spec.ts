@@ -76,8 +76,8 @@ async function badRequestOf(promise: Promise<unknown>) {
   };
 }
 
-describe('IncidentsService.create', () => {
-  it('guarda fotos, crea la incidencia y responde con número, estado y URLs', async () => {
+describe('H10. Registro de incidencia con evidencia', () => {
+  it('AC4: crea la incidencia con la unidad y el autor del residente, y responde número, Pendiente, Media y fotos', async () => {
     const { service, repository, storage } = setup();
 
     const result = await service.create(resident, dto, [png(), jpg()]);
@@ -108,7 +108,7 @@ describe('IncidentsService.create', () => {
     });
   });
 
-  it('avisa a los administradores activos con el texto de H10', async () => {
+  it('AC7: avisa a los administradores activos con el título, el mensaje, el módulo y la referencia de la card', async () => {
     const { service, notifications } = setup();
     const result = await service.create(resident, dto, [png()]);
     expect(notifications.send).toHaveBeenCalledWith({
@@ -120,14 +120,14 @@ describe('IncidentsService.create', () => {
     });
   });
 
-  it('no avisa si no hay administradores activos', async () => {
+  it('AC7: no avisa si no hay administradores activos', async () => {
     const { service, repository, notifications } = setup();
     repository.findActiveAdminIds.mockResolvedValue([]);
     await service.create(resident, dto, [png()]);
     expect(notifications.send).not.toHaveBeenCalled();
   });
 
-  it('si el aviso falla, la incidencia queda registrada igual', async () => {
+  it('AC7: si el aviso falla, la incidencia queda registrada igual', async () => {
     const { service, notifications } = setup();
     notifications.send.mockRejectedValue(new Error('caído'));
     await expect(service.create(resident, dto, [png()])).resolves.toMatchObject(
@@ -155,7 +155,7 @@ describe('IncidentsService.create', () => {
       'Solo se permiten imágenes JPG o PNG de hasta 5 MB.',
     ],
   ])(
-    'rechaza %s con 400 en photos y no guarda nada',
+    'AC5: rechaza %s con 400 en photos y no guarda nada',
     async (_caso, files, message) => {
       const { service, storage, repository } = setup();
       const body = await badRequestOf(service.create(resident, dto, files));
@@ -165,7 +165,7 @@ describe('IncidentsService.create', () => {
     },
   );
 
-  it('si falla la transacción, borra las fotos ya guardadas (todo o nada)', async () => {
+  it('AC6: si falla la transacción, borra las fotos ya guardadas (todo o nada)', async () => {
     const { service, repository, storage, notifications } = setup();
     repository.create.mockRejectedValue(new Error('db caída'));
 
@@ -179,7 +179,7 @@ describe('IncidentsService.create', () => {
     expect(notifications.send).not.toHaveBeenCalled();
   });
 
-  it('si falla el guardado de archivos, no crea la incidencia', async () => {
+  it('AC6: si falla el guardado de archivos, no crea la incidencia', async () => {
     const { service, repository, storage } = setup();
     storage.saveAll.mockRejectedValue(new Error('disco lleno'));
     await expect(service.create(resident, dto, [png()])).rejects.toThrow(

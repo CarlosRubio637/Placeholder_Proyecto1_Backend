@@ -39,6 +39,7 @@ async function main() {
   await seedFees();
   if (process.env.NODE_ENV !== 'test') await seedFeeTasksScenario();
   if (process.env.NODE_ENV !== 'test') await seedAnnouncementsScenario();
+  if (process.env.NODE_ENV !== 'test') await seedDirectoryScenario();
 }
 
 // --- H39: torres y unidades --------------------------------------------------
@@ -518,6 +519,62 @@ async function seedFeeTasksScenario() {
     });
     console.log(
       `Escenario de H5 (${period}): cuota Pendiente que vence el ${dueIso}`,
+    );
+  }
+}
+
+type DirectoryShare = {
+  visible: boolean;
+  showName: boolean;
+  showUnit: boolean;
+  showPhone: boolean;
+  showEmail: boolean;
+};
+
+const HIDDEN_IN_DIRECTORY: DirectoryShare = {
+  visible: false,
+  showName: false,
+  showUnit: false,
+  showPhone: false,
+  showEmail: false,
+};
+
+const VISIBLE_IN_DIRECTORY: DirectoryShare = {
+  ...HIDDEN_IN_DIRECTORY,
+  visible: true,
+  showName: true,
+};
+
+const DIRECTORY_SCENARIO: Record<string, DirectoryShare> = {
+  residente1: {
+    ...VISIBLE_IN_DIRECTORY,
+    showUnit: true,
+    showPhone: true,
+    showEmail: true,
+  },
+  residente2: { ...VISIBLE_IN_DIRECTORY, showPhone: true },
+  residente3: { ...VISIBLE_IN_DIRECTORY, showUnit: true },
+  residente4: { ...VISIBLE_IN_DIRECTORY, showEmail: true },
+  residente5: { ...VISIBLE_IN_DIRECTORY, showUnit: true, showEmail: true },
+  residente6: HIDDEN_IN_DIRECTORY,
+};
+
+async function seedDirectoryScenario() {
+  for (const [account, share] of Object.entries(DIRECTORY_SCENARIO)) {
+    const email = `${account}@condominio.test`;
+    const user = await prisma.user.findUniqueOrThrow({
+      where: { email },
+      select: { id: true, directoryPreference: { select: { id: true } } },
+    });
+    if (user.directoryPreference) {
+      console.log(`Directorio de ${email}: ya tiene preferencias, sin cambios`);
+      continue;
+    }
+    await prisma.directoryPreference.create({
+      data: { userId: user.id, ...share },
+    });
+    console.log(
+      `Directorio de ${email}: ${share.visible ? 'visible' : 'oculto'}`,
     );
   }
 }

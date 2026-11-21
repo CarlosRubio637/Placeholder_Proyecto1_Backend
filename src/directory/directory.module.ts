@@ -1,10 +1,18 @@
 import { Module } from '@nestjs/common';
-import { ProfileController } from './controllers/index.js';
-import { ProfileRepository } from './repositories/index.js';
-import { ProfileService } from './services/index.js';
+import { DirectoryController, ProfileController } from './controllers/index.js';
+import {
+  DirectoryRepository,
+  ProfileRepository,
+} from './repositories/index.js';
+import { DirectoryService, ProfileService } from './services/index.js';
 
 @Module({
-  controllers: [ProfileController],
-  providers: [ProfileService, ProfileRepository],
+  controllers: [ProfileController, DirectoryController],
+  providers: [
+    ProfileService,
+    ProfileRepository,
+    DirectoryService,
+    DirectoryRepository,
+  ],
 })
 export class DirectoryModule {}

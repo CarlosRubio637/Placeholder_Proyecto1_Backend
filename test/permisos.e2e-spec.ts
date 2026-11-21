@@ -25,7 +25,7 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
   ['post', 'auth/logout', PUBLIC],
   ['get', 'auth/me', ALL],
 
-  ['get', 'torres', [S, A]],
+  ['get', 'torres', [R, S, A]],
   ['get', 'unidades', [S, A]],
   // H18: quién está dentro.
   ['get', 'seguridad/visitas/dentro', [S]],
@@ -95,6 +95,7 @@ const MATRIX: [Method, string, RoleName[] | typeof PUBLIC][] = [
 
   ['get', 'perfil', [R]],
   ['put', 'perfil', [R]],
+  ['get', 'directorio', [R]],
 
   ['post', 'visitas', [R]],
   ['get', 'visitas/mias', [R]],

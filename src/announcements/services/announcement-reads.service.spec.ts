@@ -160,7 +160,7 @@ describe('H26. Comunicados publicados y control de lecturas', () => {
     [12, 12, 100],
     [0, 0, 0],
   ])(
-    'AC4: %i lecturas de %i destinatarios dan %d %%',
+    'AC4: %i lecturas de %i destinatarios dan un porcentaje de %d',
     async (readCount, recipientCount, readPct) => {
       const { service, repository } = setup();
       repository.listForAdmin.mockResolvedValue({

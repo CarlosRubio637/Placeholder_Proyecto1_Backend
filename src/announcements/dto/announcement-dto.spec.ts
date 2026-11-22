@@ -1,5 +1,7 @@
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { validationExceptionFactory } from '@Common/validation';
 import { ANNOUNCEMENT_MESSAGES } from '../announcements.constants.js';
 import { AudienceQueryDto, CreateAnnouncementDto } from './index.js';
 
@@ -16,6 +18,13 @@ async function check<T extends object>(cls: new () => T, plain: object) {
   };
 }
 
+const pipe = new ValidationPipe({
+  whitelist: true,
+  forbidNonWhitelisted: true,
+  transform: true,
+  exceptionFactory: validationExceptionFactory,
+});
+
 const TOWER_A = '0b6f4c1e-8a57-4b55-9a52-5a3f4c7d2e11';
 const TOWER_B = '6f1d2c3b-4a59-4e6f-8a7b-9c0d1e2f3a4b';
 const TOWER_C = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d';
@@ -29,6 +38,104 @@ const valid = {
   towerIds: [TOWER_A],
   expiresOn: '2026-11-14',
 };
+
+describe('H25. Publicación de comunicados segmentados', () => {
+  it.each(['title', 'body', 'category', 'audience', 'expiresOn'] as const)(
+    'AC6: sin %s responde 400 con ese campo',
+    async (missing) => {
+      const { [missing]: _omitted, ...rest } = valid;
+      const error = await pipe
+        .transform(rest, { type: 'body', metatype: CreateAnnouncementDto })
+        .catch((reason: unknown) => reason);
+      expect(error).toBeInstanceOf(BadRequestException);
+      expect((error as BadRequestException).getResponse()).toMatchObject({
+        statusCode: 400,
+        field: missing,
+      });
+    },
+  );
+
+  it.each([['abcd'], ['   abcd   '], ['x'.repeat(101)], [undefined]])(
+    'AC6: rechaza el título %j con el mensaje de la card',
+    async (title) => {
+      const { fields, messages } = await check(CreateAnnouncementDto, {
+        ...valid,
+        title,
+      });
+      expect(fields).toEqual(['title']);
+      expect(messages).toContain(ANNOUNCEMENT_MESSAGES.title);
+    },
+  );
+
+  it.each([['x'.repeat(9)], ['x'.repeat(2001)]])(
+    'AC6: rechaza el contenido de %#',
+    async (body) => {
+      const { fields, messages } = await check(CreateAnnouncementDto, {
+        ...valid,
+        body,
+      });
+      expect(fields).toEqual(['body']);
+      expect(messages).toContain(ANNOUNCEMENT_MESSAGES.body);
+    },
+  );
+
+  it('AC6: cuenta los emojis como los cuenta Postgres', async () => {
+    const heart = '❤️';
+    const title = await check(CreateAnnouncementDto, {
+      ...valid,
+      title: heart.repeat(60),
+    });
+    const body = await check(CreateAnnouncementDto, {
+      ...valid,
+      body: heart.repeat(1001),
+    });
+    expect(title.fields).toEqual(['title']);
+    expect(body.fields).toEqual(['body']);
+  });
+
+  it('AC6: rechaza la categoría y la audiencia desconocidas', async () => {
+    const { fields } = await check(CreateAnnouncementDto, {
+      ...valid,
+      category: 'URGENTE',
+      audience: 'UNIDAD',
+    });
+    expect(fields).toEqual(['category', 'audience']);
+  });
+
+  it.each([
+    ['sin torres', []],
+    ['sin la lista', undefined],
+    ['con torres repetidas', [TOWER_A, TOWER_A]],
+  ])('AC6: rechaza TORRES %s', async (_case, towerIds) => {
+    const { fields, messages } = await check(CreateAnnouncementDto, {
+      ...valid,
+      towerIds,
+    });
+    expect(fields).toEqual(['towerIds']);
+    expect(messages).toEqual([ANNOUNCEMENT_MESSAGES.towerIds]);
+  });
+
+  it('AC6: rechaza una torre que no es uuid', async () => {
+    const { fields, messages } = await check(CreateAnnouncementDto, {
+      ...valid,
+      towerIds: ['torre-a'],
+    });
+    expect(fields).toEqual(['towerIds']);
+    expect(messages).toEqual([ANNOUNCEMENT_MESSAGES.towerIdFormat]);
+  });
+
+  it.each([['2026-13-01'], ['30/11/2026'], [undefined]])(
+    'AC6: rechaza la fecha %j',
+    async (expiresOn) => {
+      const { fields, messages } = await check(CreateAnnouncementDto, {
+        ...valid,
+        expiresOn,
+      });
+      expect(fields).toEqual(['expiresOn']);
+      expect(messages).toContain(ANNOUNCEMENT_MESSAGES.expiresOnFormat);
+    },
+  );
+});
 
 describe('DTO del comunicado', () => {
   it('acepta un comunicado TORRES válido', async () => {
@@ -55,52 +162,6 @@ describe('DTO del comunicado', () => {
     expect(dto.body).toBe('Primera línea\nSegunda línea');
   });
 
-  it.each([['abcd'], ['   abcd   '], ['x'.repeat(101)], [undefined]])(
-    'rechaza el título %j con el mensaje de la card',
-    async (title) => {
-      const { fields, messages } = await check(CreateAnnouncementDto, {
-        ...valid,
-        title,
-      });
-      expect(fields).toEqual(['title']);
-      expect(messages).toContain(ANNOUNCEMENT_MESSAGES.title);
-    },
-  );
-
-  it.each([['x'.repeat(9)], ['x'.repeat(2001)]])(
-    'rechaza el contenido de %#',
-    async (body) => {
-      const { fields, messages } = await check(CreateAnnouncementDto, {
-        ...valid,
-        body,
-      });
-      expect(fields).toEqual(['body']);
-      expect(messages).toContain(ANNOUNCEMENT_MESSAGES.body);
-    },
-  );
-
-  it('rechaza la categoría y la audiencia desconocidas', async () => {
-    const { fields } = await check(CreateAnnouncementDto, {
-      ...valid,
-      category: 'URGENTE',
-      audience: 'UNIDAD',
-    });
-    expect(fields).toEqual(['category', 'audience']);
-  });
-
-  it.each([
-    ['sin torres', []],
-    ['sin la lista', undefined],
-    ['con torres repetidas', [TOWER_A, TOWER_A]],
-  ])('rechaza TORRES %s', async (_case, towerIds) => {
-    const { fields, messages } = await check(CreateAnnouncementDto, {
-      ...valid,
-      towerIds,
-    });
-    expect(fields).toEqual(['towerIds']);
-    expect(messages).toEqual([ANNOUNCEMENT_MESSAGES.towerIds]);
-  });
-
   it('rechaza TORRES con 4 torres con el máximo de torres', async () => {
     const { fields, messages } = await check(CreateAnnouncementDto, {
       ...valid,
@@ -109,41 +170,6 @@ describe('DTO del comunicado', () => {
     expect(fields).toEqual(['towerIds']);
     expect(messages).toEqual([ANNOUNCEMENT_MESSAGES.maxTowers]);
   });
-
-  it('cuenta los emojis como los cuenta Postgres', async () => {
-    const heart = '❤️';
-    const title = await check(CreateAnnouncementDto, {
-      ...valid,
-      title: heart.repeat(60),
-    });
-    const body = await check(CreateAnnouncementDto, {
-      ...valid,
-      body: heart.repeat(1001),
-    });
-    expect(title.fields).toEqual(['title']);
-    expect(body.fields).toEqual(['body']);
-  });
-
-  it('rechaza una torre que no es uuid', async () => {
-    const { fields, messages } = await check(CreateAnnouncementDto, {
-      ...valid,
-      towerIds: ['torre-a'],
-    });
-    expect(fields).toEqual(['towerIds']);
-    expect(messages).toEqual([ANNOUNCEMENT_MESSAGES.towerIdFormat]);
-  });
-
-  it.each([['2026-13-01'], ['30/11/2026'], [undefined]])(
-    'rechaza la fecha %j',
-    async (expiresOn) => {
-      const { fields, messages } = await check(CreateAnnouncementDto, {
-        ...valid,
-        expiresOn,
-      });
-      expect(fields).toEqual(['expiresOn']);
-      expect(messages).toContain(ANNOUNCEMENT_MESSAGES.expiresOnFormat);
-    },
-  );
 });
 
 describe('consulta de la audiencia', () => {

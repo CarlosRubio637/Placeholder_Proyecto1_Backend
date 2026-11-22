@@ -55,8 +55,43 @@ async function badRequestOf(promise: Promise<unknown>) {
   };
 }
 
-describe('FeeGenerationsService', () => {
-  it('genera con el concepto por defecto y responde creadas, omitidas y autor', async () => {
+describe('H3. Generación mensual de cuotas', () => {
+  it('AC2: la vista previa resta las unidades que ya tienen cuota', async () => {
+    const { service, repository } = setup();
+    expect(await service.preview('2026-12', NOW)).toEqual({
+      activeUnits: 6,
+      alreadyGenerated: 1,
+      toCreate: 5,
+    });
+    expect(repository.countUnitsForPeriod).toHaveBeenCalledWith('2026-12');
+  });
+
+  it('AC3: lista el historial con la página pedida', async () => {
+    const { service, repository } = setup();
+    const page = await service.list({ page: 2, pageSize: 10 });
+    expect(repository.findPage).toHaveBeenCalledWith(2, 10);
+    expect(page).toMatchObject({ total: 11, page: 2, pageSize: 10 });
+    expect(page.data[0]).toMatchObject({
+      amount: 35.5,
+      dueDate: '2026-12-10',
+      createdBy: { id: 'admin-1', name: 'Ana Paz' },
+    });
+  });
+
+  it('AC3: usa el correo como nombre del autor si la cuenta no tiene perfil', async () => {
+    const { service, repository } = setup();
+    repository.generate.mockResolvedValue(
+      generation({
+        id: 'admin-1',
+        email: 'admin@condominio.test',
+        profile: null,
+      }),
+    );
+    const result = await service.generate(admin, dto, NOW);
+    expect(result.createdBy.name).toBe('admin@condominio.test');
+  });
+
+  it('AC4: genera con el concepto por defecto y responde creadas, omitidas y autor', async () => {
     const { service, repository } = setup();
     const result = await service.generate(admin, dto, NOW);
 
@@ -81,13 +116,13 @@ describe('FeeGenerationsService', () => {
     });
   });
 
-  it('respeta el concepto que escribe el administrador', async () => {
+  it('AC4: respeta el concepto que escribe el administrador', async () => {
     const { service, repository } = setup();
     await service.generate(admin, { ...dto, concept: 'Cuota extra' }, NOW);
     expect(repository.generate.mock.calls[0][0].concept).toBe('Cuota extra');
   });
 
-  it('guarda 19.99 exacto como Decimal', async () => {
+  it('AC4: guarda 19.99 exacto como Decimal', async () => {
     const { service, repository } = setup();
     await service.generate(admin, { ...dto, amount: 19.99 }, NOW);
     expect(
@@ -97,20 +132,7 @@ describe('FeeGenerationsService', () => {
     ).toBe(true);
   });
 
-  it('usa el correo como nombre del autor si la cuenta no tiene perfil', async () => {
-    const { service, repository } = setup();
-    repository.generate.mockResolvedValue(
-      generation({
-        id: 'admin-1',
-        email: 'admin@condominio.test',
-        profile: null,
-      }),
-    );
-    const result = await service.generate(admin, dto, NOW);
-    expect(result.createdBy.name).toBe('admin@condominio.test');
-  });
-
-  it('responde 409 con el periodo en palabras si todas las unidades activas ya tienen cuota', async () => {
+  it('AC5: responde 409 con el periodo en palabras si todas las unidades activas ya tienen cuota', async () => {
     const { service, repository } = setup();
     repository.generate.mockRejectedValue(
       new PeriodAlreadyGeneratedError('2026-12'),
@@ -122,16 +144,8 @@ describe('FeeGenerationsService', () => {
     );
   });
 
-  it('responde 409 si no hay unidades activas', async () => {
-    const { service, repository } = setup();
-    repository.generate.mockRejectedValue(new NoActiveUnitsError());
-    await expect(service.generate(admin, dto, NOW)).rejects.toThrow(
-      new ConflictException('No hay unidades activas para generar cuotas.'),
-    );
-  });
-
   it.each(['2026-10', '2027-03'])(
-    'rechaza en period el periodo %s fuera de la ventana',
+    'AC6: rechaza en period el periodo %s fuera de la ventana',
     async (period) => {
       const { service, repository } = setup();
       const body = await badRequestOf(
@@ -155,7 +169,7 @@ describe('FeeGenerationsService', () => {
     ['2026-12', '2027-01-10'],
     ['2026-11', '2026-11-05'],
   ])(
-    'rechaza en dueDate el vencimiento del periodo %s el %s',
+    'AC6: rechaza en dueDate el vencimiento del periodo %s el %s',
     async (period, dueDate) => {
       const { service, repository } = setup();
       const body = await badRequestOf(
@@ -171,7 +185,7 @@ describe('FeeGenerationsService', () => {
     },
   );
 
-  it('toma el mes actual en hora de El Salvador aunque en UTC ya sea el mes siguiente', async () => {
+  it('AC6: toma el mes actual en hora de El Salvador aunque en UTC ya sea el mes siguiente', async () => {
     const { service } = setup();
     const lateNovember = new Date('2026-12-01T03:00:00.000Z');
     await expect(service.preview('2026-11', lateNovember)).resolves.toEqual({
@@ -182,26 +196,14 @@ describe('FeeGenerationsService', () => {
     const body = await badRequestOf(service.preview('2027-03', lateNovember));
     expect(body.field).toBe('period');
   });
+});
 
-  it('la vista previa resta las unidades que ya tienen cuota', async () => {
+describe('FeeGenerationsService', () => {
+  it('responde 409 si no hay unidades activas', async () => {
     const { service, repository } = setup();
-    expect(await service.preview('2026-12', NOW)).toEqual({
-      activeUnits: 6,
-      alreadyGenerated: 1,
-      toCreate: 5,
-    });
-    expect(repository.countUnitsForPeriod).toHaveBeenCalledWith('2026-12');
-  });
-
-  it('lista el historial con la página pedida', async () => {
-    const { service, repository } = setup();
-    const page = await service.list({ page: 2, pageSize: 10 });
-    expect(repository.findPage).toHaveBeenCalledWith(2, 10);
-    expect(page).toMatchObject({ total: 11, page: 2, pageSize: 10 });
-    expect(page.data[0]).toMatchObject({
-      amount: 35.5,
-      dueDate: '2026-12-10',
-      createdBy: { id: 'admin-1', name: 'Ana Paz' },
-    });
+    repository.generate.mockRejectedValue(new NoActiveUnitsError());
+    await expect(service.generate(admin, dto, NOW)).rejects.toThrow(
+      new ConflictException('No hay unidades activas para generar cuotas.'),
+    );
   });
 });

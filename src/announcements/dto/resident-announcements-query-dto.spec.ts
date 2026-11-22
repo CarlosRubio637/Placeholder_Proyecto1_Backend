@@ -19,15 +19,15 @@ async function check(plain: object) {
   };
 }
 
-describe('consulta de comunicados del residente', () => {
-  it('sin parámetros usa vigentes, página 1 y 10 por página', async () => {
+describe('H27. Consulta de comunicados relevantes', () => {
+  it('AC1: sin parámetros abre la pestaña Vigentes en la página 1 con 10 por página', async () => {
     const { dto, fields } = await check({});
     expect(fields).toEqual([]);
     expect(dto).toMatchObject({ tab: 'vigentes', page: 1, pageSize: 10 });
     expect(dto.category).toBeUndefined();
   });
 
-  it('acepta archivados, una categoría y la paginación como texto', async () => {
+  it('AC1 y AC2: acepta la pestaña Archivados, una categoría y la paginación como texto', async () => {
     const { dto, fields } = await check({
       tab: 'archivados',
       category: 'MANTENIMIENTO',
@@ -42,7 +42,9 @@ describe('consulta de comunicados del residente', () => {
       pageSize: 20,
     });
   });
+});
 
+describe('consulta de comunicados del residente', () => {
   it('rechaza una pestaña desconocida', async () => {
     const { fields, messages } = await check({ tab: 'todos' });
     expect(fields).toEqual(['tab']);

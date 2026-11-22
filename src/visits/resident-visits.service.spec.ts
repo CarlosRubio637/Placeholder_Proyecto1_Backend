@@ -66,8 +66,8 @@ function setup() {
   return { service, prisma, notifications };
 }
 
-describe('ResidentVisitsService.list (H15)', () => {
-  it('Activas: pendientes primero y autorizadas de hoy en adelante, de la unidad', async () => {
+describe('H15. Mis visitas: cancelar autorizaciones y responder solicitudes', () => {
+  it('AC1: Activas trae las pendientes primero y las autorizadas de hoy en adelante, de la unidad', async () => {
     const { service, prisma } = setup();
     await service.list(
       RESIDENT,
@@ -86,7 +86,7 @@ describe('ResidentVisitsService.list (H15)', () => {
     expect(args.orderBy[0]).toEqual({ status: 'desc' });
   });
 
-  it('Historial: los estados finales, el más reciente primero', async () => {
+  it('AC1: Historial trae Rechazada, Dentro, Finalizada, Cancelada y Vencida, la más reciente primero', async () => {
     const { service, prisma } = setup();
     await service.list(
       RESIDENT,
@@ -108,7 +108,7 @@ describe('ResidentVisitsService.list (H15)', () => {
     expect(args).toMatchObject({ skip: 10, take: 10 });
   });
 
-  it('devuelve las columnas, quién la creó y el vencimiento de las pendientes', async () => {
+  it('AC1: devuelve visitante, documento, fecha, hora, motivo, código, estado, quién la creó y el vencimiento de las pendientes', async () => {
     const { service, prisma } = setup();
     const createdAt = new Date(NOW.getTime() - 5 * MIN);
     prisma.visit.findMany.mockResolvedValue([
@@ -143,7 +143,7 @@ describe('ResidentVisitsService.list (H15)', () => {
     expect(result.data[1]).not.toHaveProperty('createdAt');
   });
 
-  it('403 si la cuenta no tiene unidad', async () => {
+  it('AC5: una cuenta sin unidad no tiene visitas (403)', async () => {
     const { service } = setup();
     await expect(
       service.list(
@@ -154,8 +154,8 @@ describe('ResidentVisitsService.list (H15)', () => {
   });
 });
 
-describe('ResidentVisitsService.cancel (H15)', () => {
-  it('cancela solo si es de la unidad y está Autorizada, con fecha y autor', async () => {
+describe('H15. Mis visitas: cancelar autorizaciones y responder solicitudes', () => {
+  it('AC6: cancelar pasa de Autorizada a Cancelada y guarda fecha, hora y autor', async () => {
     const { service, prisma } = setup();
 
     const result = await service.cancel(RESIDENT, 'visit-1', NOW);
@@ -171,7 +171,7 @@ describe('ResidentVisitsService.cancel (H15)', () => {
     });
   });
 
-  it('404 si es de otra unidad o no existe', async () => {
+  it('AC10: cancelar una visita de otra unidad o que no existe responde 404', async () => {
     const { service, prisma } = setup();
     prisma.visit.updateMany.mockResolvedValue({ count: 0 });
     prisma.visit.findFirst.mockResolvedValue(null);
@@ -180,7 +180,7 @@ describe('ResidentVisitsService.cancel (H15)', () => {
     );
   });
 
-  it('409 si no está Autorizada (por ejemplo, ya está Dentro)', async () => {
+  it('AC9: no permite cancelar una visita que no está Autorizada (por ejemplo, Dentro)', async () => {
     const { service, prisma } = setup();
     prisma.visit.updateMany.mockResolvedValue({ count: 0 });
     prisma.visit.findFirst.mockResolvedValue({ status: 'DENTRO' });
@@ -190,8 +190,8 @@ describe('ResidentVisitsService.cancel (H15)', () => {
   });
 });
 
-describe('ResidentVisitsService.respond (H15)', () => {
-  it('aprobar: condicionado por Pendiente y los 15 minutos', async () => {
+describe('H15. Mis visitas: cancelar autorizaciones y responder solicitudes', () => {
+  it('AC6: aprobar pasa de Pendiente a Autorizada y guarda quién respondió y cuándo', async () => {
     const { service, prisma } = setup();
 
     const result = await service.respond(
@@ -222,7 +222,7 @@ describe('ResidentVisitsService.respond (H15)', () => {
     });
   });
 
-  it('aprobar avisa a todo seguridad con el texto de H15', async () => {
+  it('AC8: aprobar avisa a todo el Personal de seguridad activo con el texto de la card', async () => {
     const { service, notifications } = setup();
     await service.respond(RESIDENT, 'visit-1', { decision: 'APROBAR' }, NOW);
     expect(notifications.send).toHaveBeenCalledWith({
@@ -235,7 +235,7 @@ describe('ResidentVisitsService.respond (H15)', () => {
     });
   });
 
-  it('rechazar guarda el motivo y lo incluye en el aviso', async () => {
+  it('AC6: rechazar pasa a Rechazada con su motivo, y el aviso a seguridad lo incluye', async () => {
     const { service, prisma, notifications } = setup();
     const result = await service.respond(
       RESIDENT,
@@ -255,7 +255,7 @@ describe('ResidentVisitsService.respond (H15)', () => {
     });
   });
 
-  it('rechazar sin motivo lo dice en el aviso', async () => {
+  it('AC8: rechazar sin motivo lo dice en el aviso', async () => {
     const { service, notifications } = setup();
     await service.respond(RESIDENT, 'visit-1', { decision: 'RECHAZAR' }, NOW);
     expect(notifications.send.mock.calls[0][0].message).toBe(
@@ -263,7 +263,7 @@ describe('ResidentVisitsService.respond (H15)', () => {
     );
   });
 
-  it('si el aviso falla, la respuesta igual queda', async () => {
+  it('AC8: si el aviso falla, la respuesta igual queda', async () => {
     const { service, notifications } = setup();
     notifications.send.mockRejectedValue(new Error('caído'));
     await expect(
@@ -317,17 +317,20 @@ describe('ResidentVisitsService.respond (H15)', () => {
       ConflictException,
       'La solicitud ya no está pendiente de autorización.',
     ],
-  ])('si %s', async (_caso, visit, httpError, message) => {
-    const { service, prisma, notifications } = setup();
-    prisma.visit.updateMany.mockResolvedValue({ count: 0 });
-    prisma.visit.findFirst.mockResolvedValue(visit);
+  ])(
+    'AC9: si %s, responde el error y no avisa',
+    async (_caso, visit, httpError, message) => {
+      const { service, prisma, notifications } = setup();
+      prisma.visit.updateMany.mockResolvedValue({ count: 0 });
+      prisma.visit.findFirst.mockResolvedValue(visit);
 
-    const error = await service
-      .respond(RESIDENT, 'visit-1', { decision: 'APROBAR' }, NOW)
-      .catch((e: unknown) => e);
+      const error = await service
+        .respond(RESIDENT, 'visit-1', { decision: 'APROBAR' }, NOW)
+        .catch((e: unknown) => e);
 
-    expect(error).toBeInstanceOf(httpError);
-    if (message) expect((error as Error).message).toBe(message);
-    expect(notifications.send).not.toHaveBeenCalled();
-  });
+      expect(error).toBeInstanceOf(httpError);
+      if (message) expect((error as Error).message).toBe(message);
+      expect(notifications.send).not.toHaveBeenCalled();
+    },
+  );
 });

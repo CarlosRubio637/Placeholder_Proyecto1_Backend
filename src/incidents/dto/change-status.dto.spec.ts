@@ -27,8 +27,8 @@ const VALID = {
   expectedStatus: 'PENDIENTE',
 };
 
-describe('ChangeStatusDto (H13)', () => {
-  it('acepta un cambio válido y recorta la observación', async () => {
+describe('H13. Cambio de estado y seguimiento de incidencias', () => {
+  it('AC6: acepta un cambio con observación válida y la recorta', async () => {
     const { dto, fields } = await check({
       ...VALID,
       note: '  Se envió al fontanero.  ',
@@ -42,7 +42,7 @@ describe('ChangeStatusDto (H13)', () => {
     ['solo con espacios', '            '],
     ['de 501 caracteres', 'x'.repeat(501)],
     ['ausente', undefined],
-  ])('rechaza una observación %s', async (_caso, note) => {
+  ])('AC6: rechaza con 400 una observación %s', async (_caso, note) => {
     const { fields, messages } = await check({ ...VALID, note });
     expect(fields).toEqual(['note']);
     expect(messages).toEqual([
@@ -50,7 +50,7 @@ describe('ChangeStatusDto (H13)', () => {
     ]);
   });
 
-  it('acepta exactamente 10 y 500 caracteres', async () => {
+  it('AC6: acepta observaciones de exactamente 10 y 500 caracteres', async () => {
     for (const note of ['x'.repeat(10), 'x'.repeat(500)]) {
       await expect(check({ ...VALID, note })).resolves.toMatchObject({
         fields: [],
@@ -61,13 +61,13 @@ describe('ChangeStatusDto (H13)', () => {
   it.each([
     ['PENDIENTE', 'no se vuelve a Pendiente'],
     ['CERRADA', 'no existe'],
-  ])('rechaza toStatus %s (%s)', async (toStatus) => {
+  ])('AC4: rechaza toStatus %s (%s)', async (toStatus) => {
     const { fields, messages } = await check({ ...VALID, toStatus });
     expect(fields).toEqual(['toStatus']);
     expect(messages).toEqual([STATUS_MESSAGES.toStatus]);
   });
 
-  it('expectedStatus es obligatorio', async () => {
+  it('AC7: expectedStatus (el estado que vio el administrador) es obligatorio', async () => {
     const { fields } = await check({ ...VALID, expectedStatus: undefined });
     expect(fields).toEqual(['expectedStatus']);
   });

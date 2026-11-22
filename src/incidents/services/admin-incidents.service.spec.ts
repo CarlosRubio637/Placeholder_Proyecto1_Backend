@@ -232,14 +232,14 @@ describe('H12. Bandeja de incidencias del administrador: priorizar y asignar', (
   });
 });
 
-describe('AdminIncidentsService.changeStatus (H13)', () => {
+describe('H13. Cambio de estado y seguimiento de incidencias', () => {
   const dto = {
     toStatus: 'RESUELTO' as const,
     note: 'Se cambió la tubería del baño.',
     expectedStatus: 'EN_PROCESO' as const,
   };
 
-  it('aplica el cambio con la hora del servidor y responde incidencia y evento', async () => {
+  it('AC5: aplica el cambio con la hora del servidor y responde incidencia y evento', async () => {
     const { service, repository } = setup();
 
     const result = await service.changeStatus(ADMIN, 'inc-1', dto, NOW);
@@ -265,7 +265,7 @@ describe('AdminIncidentsService.changeStatus (H13)', () => {
     expect(result).not.toHaveProperty('reporterId');
   });
 
-  it('avisa al residente que reportó con el texto de H13', async () => {
+  it('AC8: avisa al residente que reportó con el título, el mensaje, el módulo y la referencia de la card', async () => {
     const { service, notifications } = setup();
     await service.changeStatus(ADMIN, 'inc-1', dto, NOW);
     expect(notifications.send).toHaveBeenCalledWith({
@@ -278,7 +278,7 @@ describe('AdminIncidentsService.changeStatus (H13)', () => {
     });
   });
 
-  it('recorta el aviso a 500 caracteres; la observación completa queda en el historial', async () => {
+  it('AC8: recorta el aviso a 500 caracteres; la observación completa queda en el historial', async () => {
     const { service, repository, notifications } = setup();
     const note = 'x'.repeat(500);
     repository.applyStatusChange.mockResolvedValue({
@@ -308,7 +308,7 @@ describe('AdminIncidentsService.changeStatus (H13)', () => {
     expect(result.event.note).toHaveLength(500);
   });
 
-  it('si el aviso falla, el cambio igual responde bien', async () => {
+  it('AC8: si el aviso falla, el cambio igual responde bien', async () => {
     const { service, notifications } = setup();
     notifications.send.mockRejectedValue(new Error('caído'));
     await expect(
@@ -337,14 +337,17 @@ describe('AdminIncidentsService.changeStatus (H13)', () => {
       ConflictException,
       'Asigna un responsable antes de iniciar la atención.',
     ],
-  ])('traduce %o', async (domainError, httpError, message) => {
-    const { service, repository, notifications } = setup();
-    repository.applyStatusChange.mockRejectedValue(domainError);
-    const error = await service
-      .changeStatus(ADMIN, 'inc-1', dto, NOW)
-      .catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(httpError);
-    expect((error as Error).message).toBe(message);
-    expect(notifications.send).not.toHaveBeenCalled();
-  });
+  ])(
+    'AC6: traduce %o al error HTTP con su mensaje y no avisa',
+    async (domainError, httpError, message) => {
+      const { service, repository, notifications } = setup();
+      repository.applyStatusChange.mockRejectedValue(domainError);
+      const error = await service
+        .changeStatus(ADMIN, 'inc-1', dto, NOW)
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(httpError);
+      expect((error as Error).message).toBe(message);
+      expect(notifications.send).not.toHaveBeenCalled();
+    },
+  );
 });

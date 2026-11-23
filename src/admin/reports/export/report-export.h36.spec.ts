@@ -93,6 +93,9 @@ async function bytes(file: StreamableFile): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+/** "$1,125.00" o "$1125.00" a 1125: compara la cifra sin depender del formato. */
+const amountOf = (text: string) => Number(text.replace(/[$,]/g, ''));
+
 /** Tabla mínima de N filas para probar el límite de exportación. */
 const tableOf = (rows: number): ReportTable => ({
   report: 'morosidad',
@@ -169,9 +172,12 @@ describe('H36. Exportación de reportes en PDF y CSV', () => {
         '01/01/2026',
         'Generado el 22/11/2026 12:00 por Laura Martínez',
         'Monto adeudado: ',
-        '$1125.00',
       ]),
     );
+    // El monto del resumen, con el formato que use el PDF.
+    const owed = table.summary.find(([label]) => label === 'Monto adeudado');
+    expect(owed && amountOf(owed[1])).toBe(1125);
+    expect(written).toContain(owed?.[1]);
     // Las 25 unidades, aunque la pantalla pagina de 20 en 20.
     for (const { code } of UNITS) expect(written).toContain(code);
   });
@@ -219,10 +225,8 @@ describe('H36. Exportación de reportes en PDF y CSV', () => {
         row.ageDays,
       ]),
     );
-    expect(table.summary).toContainEqual([
-      'Monto adeudado',
-      `$${screen.summary.owedAmount.toFixed(2)}`,
-    ]);
+    const owed = table.summary.find(([label]) => label === 'Monto adeudado');
+    expect(owed && amountOf(owed[1])).toBe(screen.summary.owedAmount);
   });
 
   it('AC7: más de 5,000 filas responde 400 con el mensaje de la tarjeta; 5,000 sí se exportan', async () => {

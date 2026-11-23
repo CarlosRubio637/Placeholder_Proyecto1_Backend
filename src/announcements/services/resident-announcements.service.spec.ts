@@ -45,8 +45,8 @@ function setup() {
   return { service, repository };
 }
 
-describe('comunicados del residente', () => {
-  it('pide los vigentes con la fecha de hoy de El Salvador', async () => {
+describe('H27. Consulta de comunicados relevantes', () => {
+  it('AC1 y AC6: la pestaña Vigentes pide 10 comunicados del residente del token con la fecha de hoy de El Salvador', async () => {
     const { service, repository } = setup();
     await service.list(resident, query(), new Date('2026-11-08T15:00:00.000Z'));
     expect(repository.listForResident).toHaveBeenCalledWith('user-1', {
@@ -58,7 +58,7 @@ describe('comunicados del residente', () => {
     });
   });
 
-  it('a las 21:00 de El Salvador hoy sigue siendo el mismo día', async () => {
+  it('AC1: a las 21:00 de El Salvador Vigentes sigue usando la fecha de hoy y no la de mañana', async () => {
     const { service, repository } = setup();
     await service.list(resident, query(), new Date('2026-11-09T03:00:00.000Z'));
     expect(repository.listForResident).toHaveBeenCalledWith(
@@ -67,7 +67,7 @@ describe('comunicados del residente', () => {
     );
   });
 
-  it('archivados y la página 3 de 20 piden skip 40', async () => {
+  it('AC1 y AC2: la pestaña Archivados con categoría y la página 3 de 20 piden skip 40', async () => {
     const { service, repository } = setup();
     await service.list(
       resident,
@@ -90,7 +90,7 @@ describe('comunicados del residente', () => {
     );
   });
 
-  it('responde la página con expiresOn en AAAA-MM-DD', async () => {
+  it('AC1: cada comunicado responde título, categoría, fecha de publicación y readAt null como No leído', async () => {
     const { service } = setup();
     const page = await service.list(resident, query({ page: 2, pageSize: 5 }));
     expect(page).toEqual({
@@ -110,7 +110,7 @@ describe('comunicados del residente', () => {
     });
   });
 
-  it('abrir llama al repositorio con el id del token', async () => {
+  it('AC3 y AC5: abrir guarda la lectura del residente del token y responde el comunicado completo con readAt', async () => {
     const { service, repository } = setup();
     const opened = await service.read(resident, ANNOUNCEMENT_ID);
     expect(repository.markRead).toHaveBeenCalledWith('user-1', ANNOUNCEMENT_ID);
@@ -125,7 +125,7 @@ describe('comunicados del residente', () => {
     });
   });
 
-  it('abrir uno ajeno responde 404 con "El comunicado no existe."', async () => {
+  it('AC7: abrir uno dirigido solo a otra torre responde 404 con "El comunicado no existe."', async () => {
     const { service, repository } = setup();
     repository.markRead.mockRejectedValue(
       new AnnouncementNotFoundError(ANNOUNCEMENT_ID),

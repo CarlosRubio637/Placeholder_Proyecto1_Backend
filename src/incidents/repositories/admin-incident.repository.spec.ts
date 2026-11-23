@@ -49,8 +49,8 @@ function setup(state = current()) {
 
 const base = { incidentId: 'inc-1', actorId: 'admin-1' };
 
-describe('AdminIncidentRepository.list (H12)', () => {
-  it('ordena Alta → Baja y, dentro de cada prioridad, la más antigua primero', async () => {
+describe('H12. Bandeja de incidencias del administrador: priorizar y asignar', () => {
+  it('AC1: ordena Alta → Baja y, dentro de cada prioridad, la más antigua primero', async () => {
     const { repository, prisma } = setup();
     await repository.list({ page: 2, pageSize: 20 });
     expect(prisma.incident.findMany.mock.calls[0][0]).toMatchObject({
@@ -64,7 +64,7 @@ describe('AdminIncidentRepository.list (H12)', () => {
     [{ assigneeId: 'none' }, { assigneeId: null }],
     [{ assigneeId: 'staff-1' }, { assigneeId: 'staff-1' }],
     [{ search: 'fuga' }, { searchKey: { contains: 'fuga' } }],
-  ])('filtra %o', async (params, where) => {
+  ])('AC2: filtra %o', async (params, where) => {
     const { repository, prisma } = setup();
     await repository.list({ page: 1, pageSize: 20, ...params });
     expect(prisma.incident.findMany.mock.calls[0][0].where).toMatchObject(
@@ -73,8 +73,8 @@ describe('AdminIncidentRepository.list (H12)', () => {
   });
 });
 
-describe('AdminIncidentRepository.applyManagement (H12)', () => {
-  it('bloquea la fila antes de leer el valor anterior', async () => {
+describe('H12. Bandeja de incidencias del administrador: priorizar y asignar', () => {
+  it('AC6: bloquea la fila antes de leer el valor anterior', async () => {
     const { repository, tx } = setup();
     await repository.applyManagement({ ...base, priority: 'ALTA' });
     expect(tx.$queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
@@ -82,7 +82,7 @@ describe('AdminIncidentRepository.applyManagement (H12)', () => {
     );
   });
 
-  it('cambia la prioridad y guarda el evento con el valor anterior y el nuevo', async () => {
+  it('AC6: cambia la prioridad y guarda el evento con autor, valor anterior y valor nuevo', async () => {
     const { repository, tx } = setup();
     await repository.applyManagement({ ...base, priority: 'ALTA' });
     expect(tx.incident.update).toHaveBeenCalledWith({
@@ -100,7 +100,7 @@ describe('AdminIncidentRepository.applyManagement (H12)', () => {
     });
   });
 
-  it('reasignar guarda los nombres anterior y nuevo', async () => {
+  it('AC6: reasignar guarda el responsable anterior y el nuevo', async () => {
     const { repository, tx } = setup(
       current({ assignee: { id: 'staff-1', name: 'Pedro Alvarado' } }),
     );
@@ -115,7 +115,7 @@ describe('AdminIncidentRepository.applyManagement (H12)', () => {
     });
   });
 
-  it('los dos cambios a la vez dejan dos eventos', async () => {
+  it('AC6: los dos cambios a la vez dejan dos eventos', async () => {
     const { repository, tx } = setup();
     await repository.applyManagement({
       ...base,
@@ -129,7 +129,7 @@ describe('AdminIncidentRepository.applyManagement (H12)', () => {
     });
   });
 
-  it('si los valores ya eran esos, no guarda nada ni evento', async () => {
+  it('AC6: si los valores ya eran esos, no guarda nada ni evento', async () => {
     const { repository, tx } = setup(
       current({ assignee: { id: 'staff-1', name: 'Pedro Alvarado' } }),
     );
@@ -143,13 +143,13 @@ describe('AdminIncidentRepository.applyManagement (H12)', () => {
     expect(result.event).toBeNull();
   });
 
-  it('quitar el responsable sin tener uno no genera evento', async () => {
+  it('AC6: quitar el responsable sin tener uno no genera evento', async () => {
     const { repository, tx } = setup();
     await repository.applyManagement({ ...base, assignee: null });
     expect(tx.incidentEvent.create).not.toHaveBeenCalled();
   });
 
-  it('una incidencia Resuelto no se modifica', async () => {
+  it('AC7: una incidencia Resuelto no se modifica', async () => {
     const { repository, tx } = setup(current({ status: 'RESUELTO' }));
     await expect(
       repository.applyManagement({ ...base, priority: 'ALTA' }),
@@ -157,7 +157,7 @@ describe('AdminIncidentRepository.applyManagement (H12)', () => {
     expect(tx.incident.update).not.toHaveBeenCalled();
   });
 
-  it('una incidencia inexistente da error de dominio', async () => {
+  it('AC7: una incidencia inexistente da error de dominio', async () => {
     const { repository, tx } = setup();
     tx.$queryRaw.mockResolvedValue([]);
     await expect(
@@ -166,7 +166,7 @@ describe('AdminIncidentRepository.applyManagement (H12)', () => {
   });
 });
 
-describe('AdminIncidentRepository.applyStatusChange (H13)', () => {
+describe('H13. Cambio de estado y seguimiento de incidencias', () => {
   const NOW = new Date('2026-11-19T16:00:00Z');
 
   function statusSetup(state: object) {
@@ -218,34 +218,37 @@ describe('AdminIncidentRepository.applyStatusChange (H13)', () => {
     ['PENDIENTE', 'EN_PROCESO', null],
     ['EN_PROCESO', 'RESUELTO', NOW],
     ['RESUELTO', 'EN_PROCESO', null],
-  ])('%s → %s con resolvedAt %s', async (from, to, resolvedAt) => {
-    const { repository, tx } = statusSetup({ status: from });
+  ])(
+    'AC5: %s → %s guarda el evento con hora, autor, estados y observación, y el resolvedAt que corresponde',
+    async (from, to, resolvedAt) => {
+      const { repository, tx } = statusSetup({ status: from });
 
-    const result = await repository.applyStatusChange(change(from, to));
+      const result = await repository.applyStatusChange(change(from, to));
 
-    expect(tx.incident.updateMany).toHaveBeenCalledWith({
-      where: { id: 'inc-1', status: from },
-      data: { status: to, resolvedAt },
-    });
-    expect(tx.incidentEvent.create.mock.calls[0][0].data).toEqual({
-      incidentId: 'inc-1',
-      type: 'ESTADO',
-      fromStatus: from,
-      toStatus: to,
-      note: 'Observación de prueba.',
-      authorId: 'admin-1',
-      createdAt: NOW,
-    });
-    expect(result.incident).toEqual({ id: 'inc-1', status: to, resolvedAt });
-    expect(result.reporterId).toBe('resident-1');
-  });
+      expect(tx.incident.updateMany).toHaveBeenCalledWith({
+        where: { id: 'inc-1', status: from },
+        data: { status: to, resolvedAt },
+      });
+      expect(tx.incidentEvent.create.mock.calls[0][0].data).toEqual({
+        incidentId: 'inc-1',
+        type: 'ESTADO',
+        fromStatus: from,
+        toStatus: to,
+        note: 'Observación de prueba.',
+        authorId: 'admin-1',
+        createdAt: NOW,
+      });
+      expect(result.incident).toEqual({ id: 'inc-1', status: to, resolvedAt });
+      expect(result.reporterId).toBe('resident-1');
+    },
+  );
 
   it.each([
     ['PENDIENTE', 'RESUELTO'],
     ['EN_PROCESO', 'EN_PROCESO'],
     ['RESUELTO', 'RESUELTO'],
     ['EN_PROCESO', 'PENDIENTE'],
-  ])('%s → %s no está en la tabla de estados', async (from, to) => {
+  ])('AC4: %s → %s no está en la tabla de estados', async (from, to) => {
     const { repository, tx } = statusSetup({ status: from });
     await expect(
       repository.applyStatusChange(change(from, to)),
@@ -253,7 +256,7 @@ describe('AdminIncidentRepository.applyStatusChange (H13)', () => {
     expect(tx.incident.updateMany).not.toHaveBeenCalled();
   });
 
-  it('pasar a En proceso exige responsable, también al reabrir', async () => {
+  it('AC6: pasar a En proceso exige responsable, también al reabrir', async () => {
     for (const from of ['PENDIENTE', 'RESUELTO']) {
       const { repository, tx } = statusSetup({
         status: from,
@@ -266,7 +269,7 @@ describe('AdminIncidentRepository.applyStatusChange (H13)', () => {
     }
   });
 
-  it('resolver no exige responsable', async () => {
+  it('AC6: resolver no exige responsable', async () => {
     const { repository } = statusSetup({
       status: 'EN_PROCESO',
       assigneeId: null,
@@ -276,7 +279,7 @@ describe('AdminIncidentRepository.applyStatusChange (H13)', () => {
     ).resolves.toBeTruthy();
   });
 
-  it('si el estado ya no es el que vio el administrador, no toca nada', async () => {
+  it('AC7: si el estado ya no es el que vio el administrador, no toca nada', async () => {
     const { repository, tx } = statusSetup({ status: 'EN_PROCESO' });
     await expect(
       repository.applyStatusChange(change('PENDIENTE', 'EN_PROCESO')),
@@ -284,7 +287,7 @@ describe('AdminIncidentRepository.applyStatusChange (H13)', () => {
     expect(tx.incident.updateMany).not.toHaveBeenCalled();
   });
 
-  it('si la actualización condicionada no afecta filas, tampoco guarda el evento', async () => {
+  it('AC7: si la actualización condicionada no afecta filas, tampoco guarda el evento', async () => {
     const { repository, tx } = statusSetup({ status: 'PENDIENTE' });
     tx.incident.updateMany.mockResolvedValue({ count: 0 });
     await expect(
@@ -293,7 +296,7 @@ describe('AdminIncidentRepository.applyStatusChange (H13)', () => {
     expect(tx.incidentEvent.create).not.toHaveBeenCalled();
   });
 
-  it('bloquea la fila antes de revisar; 404 si no existe', async () => {
+  it('AC7: bloquea la fila antes de revisar; 404 si no existe', async () => {
     const { repository, tx } = statusSetup({});
     tx.$queryRaw.mockResolvedValue([]);
     await expect(

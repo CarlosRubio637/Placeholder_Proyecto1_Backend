@@ -54,16 +54,14 @@ function setup(
         { id: 'a-2', name: 'Gimnasio', openTime: '08:00', closeTime: '20:00' },
       ],
     ),
-    reservations: vi
-      .fn()
-      .mockResolvedValue([
-        {
-          areaId: 'a-1',
-          status: 'CONFIRMADA',
-          startTime: '08:00',
-          endTime: '20:00',
-        },
-      ]),
+    reservations: vi.fn().mockResolvedValue([
+      {
+        areaId: 'a-1',
+        status: 'CONFIRMADA',
+        startTime: '08:00',
+        endTime: '20:00',
+      },
+    ]),
     blocks: vi.fn().mockResolvedValue([]),
   };
   const incidentsRepo = {

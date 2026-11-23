@@ -37,9 +37,25 @@ export function dateTimeEs(instant: Date): string {
   return `${formatDateEs(todayIso(instant))} ${currentTime(instant)}`;
 }
 
-/** 1275.5 → "1275.50": dos decimales fijos para montos. */
+/**
+ * 1275.5 → "1275.50": dos decimales fijos, sin separador de miles. Para las
+ * celdas de la tabla, que también van al CSV, donde la coma separa columnas.
+ */
 export function money(value: number): string {
   return value.toFixed(2);
+}
+
+const currencyFormat = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/**
+ * 2250 → "$2,250.00": con separador de miles, igual que la pantalla. Para las
+ * cifras resumen, que solo van al PDF.
+ */
+export function currency(value: number): string {
+  return `$${currencyFormat.format(value)}`;
 }
 
 /** `<reporte>_<desde>_<hasta>.<ext>` (H36). */

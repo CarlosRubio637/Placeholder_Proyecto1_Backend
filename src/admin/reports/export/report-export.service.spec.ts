@@ -104,11 +104,27 @@ describe('H36. Exportación de reportes en PDF y CSV', () => {
         ['A-000', '255.00', 98],
         ['A-001', '255.00', 98],
       ]);
-      expect(table.summary).toContainEqual(['Monto adeudado', '$1275.50']);
+      expect(table.summary).toContainEqual(['Monto adeudado', '$1,275.50']);
       expect(table.summary).toContainEqual([
         'Porcentaje de unidades morosas',
         '12.5 %',
       ]);
+    });
+
+    it('DEF-200: el monto del resumen lleva separador de miles; la tabla y el CSV no', async () => {
+      const { service, delinquency } = setup();
+      const report = delinquencyReport(1);
+      delinquency.getReport.mockResolvedValue({
+        ...report,
+        summary: { ...report.summary, owedAmount: 2250 },
+        data: [{ unitCode: 'C-201', owedAmount: 1270, ageDays: 165 }],
+      });
+
+      const table = await service.delinquencyTable({ format: 'pdf' }, NOW);
+
+      expect(table.summary).toContainEqual(['Monto adeudado', '$2,250.00']);
+      // Las celdas también van al CSV, donde la coma separa columnas.
+      expect(table.rows).toEqual([['C-201', '1270.00', 165]]);
     });
 
     it('incidencias resume la tabla cruzada y lista las abiertas con más de 7 días', async () => {

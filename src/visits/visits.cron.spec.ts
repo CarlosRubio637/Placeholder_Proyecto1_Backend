@@ -27,8 +27,8 @@ describe('vencimiento de autorizaciones de visita', () => {
   });
 });
 
-describe('VisitsCronService.expireRequests (H15)', () => {
-  it('pasa a Rechazada las pendientes de más de 15 minutos con su motivo', async () => {
+describe('H15. Mis visitas: cancelar autorizaciones y responder solicitudes', () => {
+  it('AC7: pasa a Rechazada las solicitudes de más de 15 minutos con «Sin respuesta del residente»', async () => {
     const updateMany = vi.fn().mockResolvedValue({ count: 2 });
     const cron = new VisitsCronService({
       visit: { updateMany },
@@ -49,7 +49,7 @@ describe('VisitsCronService.expireRequests (H15)', () => {
     });
   });
 
-  it('un error de base no tumba la tarea', async () => {
+  it('AC7: un error de base no tumba la tarea; la siguiente corrida lo reintenta', async () => {
     const cron = new VisitsCronService({
       visit: { updateMany: vi.fn().mockRejectedValue(new Error('caída')) },
     } as unknown as PrismaService);

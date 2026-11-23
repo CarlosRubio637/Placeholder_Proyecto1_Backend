@@ -112,6 +112,21 @@ describe('AssembliesCronService: apertura (H22)', () => {
     );
   });
 
+  it('usa singular con 1 tema y no repite el punto de la hora (DEF-302)', async () => {
+    const { cron, tx, notifications } = setup();
+    tx.assembly.findUniqueOrThrow.mockResolvedValue({
+      title: 'Asamblea ordinaria',
+      endsAt: ENDS_AT,
+      _count: { topics: 1 },
+    });
+
+    await cron.handleAssembliesLifecycle();
+
+    expect(notifications.send.mock.calls[0][0].message).toBe(
+      'Ya puedes votar 1 tema hasta el 10 de noviembre de 2026 a las 2:00 p. m.',
+    );
+  });
+
   it('si otra corrida ya la abrió (count 0), no guarda unidades ni avisa otra vez', async () => {
     const { cron, tx, notifications } = setup();
     tx.assembly.updateMany.mockResolvedValue({ count: 0 });

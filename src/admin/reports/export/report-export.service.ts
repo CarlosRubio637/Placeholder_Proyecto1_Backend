@@ -24,6 +24,7 @@ import {
 } from './export.constants.js';
 import { renderPdf } from './pdf.js';
 import {
+  currency,
   dateEs,
   dateTimeEs,
   exportFilename,
@@ -78,7 +79,7 @@ export class ReportExportService {
         ['Vencimiento hasta', dateEs(period.to)],
       ],
       summary: [
-        ['Monto adeudado', `$${money(summary.owedAmount)}`],
+        ['Monto adeudado', currency(summary.owedAmount)],
         ['Unidades morosas', String(summary.overdueUnits)],
         [
           'Unidades morosas con residente activo',

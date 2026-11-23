@@ -1,9 +1,10 @@
 import { BadRequestException, Logger } from '@nestjs/common';
 import type { User } from '@PrismaClient';
 import type { NotificationsService } from '@Notifications';
+import type { PrismaService } from '@Prisma/services';
 import { AnnouncementsService } from './announcements.service.js';
 import { buildAnnouncementNotification } from './announcement-notification.js';
-import type { AnnouncementRepository } from '../repositories/index.js';
+import { AnnouncementRepository } from '../repositories/index.js';
 import { TowerNotFoundError } from '../errors/index.js';
 import { ANNOUNCEMENT_MESSAGES } from '../announcements.constants.js';
 import type { CreateAnnouncementDto } from '../dto/index.js';
@@ -54,6 +55,42 @@ function setup() {
   return { service, repository, notifications };
 }
 
+const RESIDENTS = [
+  { id: 'residente-a101', unitId: 'unidad-a101' },
+  { id: 'residente-a102', unitId: 'unidad-a102' },
+];
+
+function setupWithRepository() {
+  const tx = {
+    tower: { findMany: vi.fn().mockResolvedValue([{ id: TOWER_A }]) },
+    user: { findMany: vi.fn().mockResolvedValue(RESIDENTS) },
+    announcement: {
+      create: vi.fn().mockResolvedValue({
+        ...published(),
+        towers: [{ tower: { id: TOWER_A, name: 'Torre A', letter: 'A' } }],
+      }),
+    },
+    announcementRecipient: {
+      createMany: vi
+        .fn()
+        .mockImplementation(({ data }: { data: unknown[] }) =>
+          Promise.resolve({ count: data.length }),
+        ),
+    },
+  };
+  const prisma = {
+    $transaction: vi.fn((work: (client: typeof tx) => Promise<unknown>) =>
+      work(tx),
+    ),
+  };
+  const notifications = { send: vi.fn().mockResolvedValue({ created: 2 }) };
+  const service = new AnnouncementsService(
+    new AnnouncementRepository(prisma as unknown as PrismaService),
+    notifications as unknown as NotificationsService,
+  );
+  return { service, prisma, tx };
+}
+
 async function badRequestOf(promise: Promise<unknown>) {
   const error = await promise.then(
     () => undefined,
@@ -66,9 +103,66 @@ async function badRequestOf(promise: Promise<unknown>) {
   };
 }
 
-describe('servicio de comunicados', () => {
+describe('H25. Publicación de comunicados segmentados', () => {
+  it('AC2: cuenta la audiencia de las torres pedidas', async () => {
+    const { service, repository } = setup();
+    expect(await service.countAudience({ towerIds: [TOWER_A] })).toEqual({
+      recipientCount: 7,
+    });
+    expect(repository.countRecipients).toHaveBeenCalledWith([TOWER_A]);
+  });
+
+  it('AC4: guarda en una sola transacción el comunicado y un destinatario No leído por cada residente de la audiencia', async () => {
+    const { service, prisma, tx } = setupWithRepository();
+
+    const result = await service.publish(admin, dto, NOW);
+
+    expect(prisma.$transaction).toHaveBeenCalledOnce();
+    expect(tx.user.findMany).toHaveBeenCalledWith({
+      where: {
+        role: 'RESIDENTE',
+        isActive: true,
+        unitId: { not: null },
+        unit: { towerId: { in: [TOWER_A] } },
+      },
+      select: { id: true, unitId: true },
+    });
+    expect(tx.announcement.create.mock.calls[0][0].data).not.toHaveProperty(
+      'publishedAt',
+    );
+    expect(tx.announcementRecipient.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          announcementId: 'ann-1',
+          userId: 'residente-a101',
+          unitId: 'unidad-a101',
+        },
+        {
+          announcementId: 'ann-1',
+          userId: 'residente-a102',
+          unitId: 'unidad-a102',
+        },
+      ],
+    });
+    expect(result).toMatchObject({ publishedAt: NOW, recipientCount: 2 });
+  });
+
+  it('AC4: devuelve el comunicado con sus torres y el conteo', async () => {
+    const { service } = setup();
+    expect(await service.publish(admin, dto, NOW)).toEqual({
+      id: 'ann-1',
+      title: dto.title,
+      category: 'CORTE_SERVICIO',
+      audience: 'TORRES',
+      towers: [{ id: TOWER_A, name: 'Torre A' }],
+      publishedAt: NOW,
+      expiresOn: '2026-12-14',
+      recipientCount: 7,
+    });
+  });
+
   it.each([['2026-12-01'], ['2027-02-28']])(
-    'acepta la vigencia %s (de mañana a hoy más 90 días)',
+    'AC6: acepta la vigencia %s (de mañana a hoy más 90 días)',
     async (expiresOn) => {
       const { service } = setup();
       const result = await service.publish(admin, { ...dto, expiresOn }, NOW);
@@ -77,7 +171,7 @@ describe('servicio de comunicados', () => {
   );
 
   it.each([['2026-11-30'], ['2027-03-01']])(
-    'rechaza la vigencia %s (hoy o hoy más 91 días)',
+    'AC6: rechaza la vigencia %s (hoy o hoy más 91 días)',
     async (expiresOn) => {
       const { service, repository } = setup();
       const response = await badRequestOf(
@@ -91,6 +185,33 @@ describe('servicio de comunicados', () => {
     },
   );
 
+  it('AC6: responde 400 con el id de una torre que no existe al publicar', async () => {
+    const { service, repository } = setup();
+    repository.publish.mockRejectedValue(new TowerNotFoundError(MISSING));
+    const response = await badRequestOf(service.publish(admin, dto, NOW));
+    expect(response).toMatchObject({
+      field: 'towerIds',
+      message: [`No existe la torre ${MISSING}.`],
+    });
+  });
+
+  it('AC8: avisa después de publicar', async () => {
+    const { service, notifications } = setup();
+    await service.publish(admin, dto, NOW);
+    expect(notifications.send).toHaveBeenCalledWith(
+      buildAnnouncementNotification({
+        id: 'ann-1',
+        title: dto.title,
+        category: 'CORTE_SERVICIO',
+        audience: 'TORRES',
+        expiresOn: '2026-12-14',
+        towerIds: [TOWER_A],
+      }),
+    );
+  });
+});
+
+describe('servicio de comunicados', () => {
   it('rechaza torres con la audiencia TODOS', async () => {
     const { service } = setup();
     const response = await badRequestOf(
@@ -99,16 +220,6 @@ describe('servicio de comunicados', () => {
     expect(response).toMatchObject({
       field: 'towerIds',
       message: [ANNOUNCEMENT_MESSAGES.towerIdsWithAll],
-    });
-  });
-
-  it('responde 400 con el id de una torre que no existe al publicar', async () => {
-    const { service, repository } = setup();
-    repository.publish.mockRejectedValue(new TowerNotFoundError(MISSING));
-    const response = await badRequestOf(service.publish(admin, dto, NOW));
-    expect(response).toMatchObject({
-      field: 'towerIds',
-      message: [`No existe la torre ${MISSING}.`],
     });
   });
 
@@ -121,14 +232,6 @@ describe('servicio de comunicados', () => {
       service.countAudience({ towerIds: [MISSING] }),
     );
     expect(response.field).toBe('towerIds');
-  });
-
-  it('cuenta la audiencia de las torres pedidas', async () => {
-    const { service, repository } = setup();
-    expect(await service.countAudience({ towerIds: [TOWER_A] })).toEqual({
-      recipientCount: 7,
-    });
-    expect(repository.countRecipients).toHaveBeenCalledWith([TOWER_A]);
   });
 
   it('publica con el administrador y la fecha como día', async () => {
@@ -150,35 +253,6 @@ describe('servicio de comunicados', () => {
     const { towerIds: _towerIds, ...rest } = dto;
     await service.publish(admin, { ...rest, audience: 'TODOS' }, NOW);
     expect(repository.publish.mock.calls[0][0].towerIds).toEqual([]);
-  });
-
-  it('devuelve el comunicado con sus torres y el conteo', async () => {
-    const { service } = setup();
-    expect(await service.publish(admin, dto, NOW)).toEqual({
-      id: 'ann-1',
-      title: dto.title,
-      category: 'CORTE_SERVICIO',
-      audience: 'TORRES',
-      towers: [{ id: TOWER_A, name: 'Torre A' }],
-      publishedAt: NOW,
-      expiresOn: '2026-12-14',
-      recipientCount: 7,
-    });
-  });
-
-  it('avisa después de publicar', async () => {
-    const { service, notifications } = setup();
-    await service.publish(admin, dto, NOW);
-    expect(notifications.send).toHaveBeenCalledWith(
-      buildAnnouncementNotification({
-        id: 'ann-1',
-        title: dto.title,
-        category: 'CORTE_SERVICIO',
-        audience: 'TORRES',
-        expiresOn: '2026-12-14',
-        towerIds: [TOWER_A],
-      }),
-    );
   });
 
   it('responde aunque el aviso falle', async () => {

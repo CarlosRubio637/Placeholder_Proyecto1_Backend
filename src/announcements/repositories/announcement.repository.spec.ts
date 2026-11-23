@@ -34,8 +34,140 @@ function setup() {
   return { repository, recipients };
 }
 
-describe('consultas de comunicados del residente', () => {
-  it('vigentes incluye los que vencen hoy y desempata por id', async () => {
+interface Resident {
+  id: string;
+  unitId: string;
+  towerId: string;
+}
+
+interface RecipientKey {
+  announcementId: string;
+  userId: string;
+}
+
+interface StoredRecipient extends RecipientKey {
+  readAt: Date | null;
+}
+
+const ANA: Resident = { id: 'ana', unitId: 'unit-a101', towerId: 'tower-a' };
+const LUIS: Resident = { id: 'luis', unitId: 'unit-a102', towerId: 'tower-a' };
+const SOFIA: Resident = {
+  id: 'sofia',
+  unitId: 'unit-a201',
+  towerId: 'tower-a',
+};
+const PEDRO: Resident = {
+  id: 'pedro',
+  unitId: 'unit-b101',
+  towerId: 'tower-b',
+};
+const VIGENTES = { archived: false, today: TODAY, skip: 0, take: 10 };
+
+function inMemoryCondominium(residents: Resident[]) {
+  const stored: StoredRecipient[] = [];
+  const recipientsOf = (userId: string) =>
+    stored.filter((row) => row.userId === userId);
+  const tables = {
+    tower: {
+      findMany: vi.fn(({ where }: { where: { id: { in: string[] } } }) =>
+        Promise.resolve(where.id.in.map((id) => ({ id }))),
+      ),
+    },
+    user: {
+      findMany: vi.fn(
+        ({ where }: { where: { unit?: { towerId: { in: string[] } } } }) => {
+          const towerIds = where.unit?.towerId.in;
+          return Promise.resolve(
+            residents
+              .filter(
+                (resident) => !towerIds || towerIds.includes(resident.towerId),
+              )
+              .map(({ id, unitId }) => ({ id, unitId })),
+          );
+        },
+      ),
+    },
+    announcement: {
+      create: vi.fn(() => Promise.resolve({ ...announcement, towers: [] })),
+    },
+    announcementRecipient: {
+      createMany: vi.fn(({ data }: { data: RecipientKey[] }) => {
+        stored.push(
+          ...data.map(({ announcementId, userId }) => ({
+            announcementId,
+            userId,
+            readAt: null,
+          })),
+        );
+        return Promise.resolve({ count: data.length });
+      }),
+      findMany: vi.fn(({ where }: { where: { userId: string } }) =>
+        Promise.resolve(
+          recipientsOf(where.userId).map((row) => ({
+            readAt: row.readAt,
+            announcement,
+          })),
+        ),
+      ),
+      count: vi.fn(({ where }: { where: { userId: string } }) =>
+        Promise.resolve(recipientsOf(where.userId).length),
+      ),
+      updateMany: vi.fn(
+        ({ where, data }: { where: RecipientKey; data: { readAt: Date } }) => {
+          const unread = recipientsOf(where.userId).filter(
+            (row) =>
+              row.announcementId === where.announcementId &&
+              row.readAt === null,
+          );
+          unread.forEach((row) => {
+            row.readAt = data.readAt;
+          });
+          return Promise.resolve({ count: unread.length });
+        },
+      ),
+      findUnique: vi.fn(
+        ({ where }: { where: { announcementId_userId: RecipientKey } }) => {
+          const key = where.announcementId_userId;
+          const row = recipientsOf(key.userId).find(
+            (recipient) => recipient.announcementId === key.announcementId,
+          );
+          return Promise.resolve(
+            row ? { readAt: row.readAt, announcement } : null,
+          );
+        },
+      ),
+    },
+  };
+  const prisma = {
+    ...tables,
+    $transaction: vi.fn(
+      (work: ((tx: typeof tables) => Promise<unknown>) | Promise<unknown>[]) =>
+        Array.isArray(work) ? Promise.all(work) : work(tables),
+    ),
+  };
+  return new AnnouncementRepository(prisma as unknown as PrismaService);
+}
+
+async function publishTo(residents: Resident[], towerIds: string[]) {
+  const repository = inMemoryCondominium(residents);
+  await repository.publish({
+    title: announcement.title,
+    body: announcement.body,
+    category: 'CORTE_SERVICIO',
+    audience: towerIds.length === 0 ? 'TODOS' : 'TORRES',
+    towerIds,
+    expiresOn: announcement.expiresOn,
+    createdById: 'admin-1',
+  });
+  return repository;
+}
+
+describe('H27. Consulta de comunicados relevantes', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('AC1 y AC2: Vigentes incluye los que vencen hoy, filtra por categoría y ordena del más reciente al más antiguo con desempate por id', async () => {
     const { repository, recipients } = setup();
     const result = await repository.listForResident(USER_ID, {
       archived: false,
@@ -63,7 +195,7 @@ describe('consultas de comunicados del residente', () => {
     expect(result.total).toBe(1);
   });
 
-  it('archivados solo trae los que vencieron antes de hoy', async () => {
+  it('AC1: Archivados solo trae los que vencieron antes de hoy', async () => {
     const { repository, recipients } = setup();
     await repository.listForResident(USER_ID, {
       archived: true,
@@ -81,7 +213,7 @@ describe('consultas de comunicados del residente', () => {
     );
   });
 
-  it('abrir solo guarda la lectura del residente si estaba vacía', async () => {
+  it('AC5: abrir solo guarda la lectura del residente si estaba vacía', async () => {
     const { repository, recipients } = setup();
     await repository.markRead(USER_ID, ANNOUNCEMENT_ID);
     expect(recipients.updateMany).toHaveBeenCalledWith({
@@ -100,19 +232,68 @@ describe('consultas de comunicados del residente', () => {
     );
   });
 
-  it('abrir otra vez devuelve la primera fecha de lectura', async () => {
+  it('AC5: abrir otra vez devuelve la primera fecha de lectura', async () => {
     const { repository } = setup();
     const detail = await repository.markRead(USER_ID, ANNOUNCEMENT_ID);
     expect(detail.readAt).toBe(FIRST_READ);
     expect(detail.announcement.body).toBe(announcement.body);
   });
 
-  it('abrir uno del que no es destinatario lanza AnnouncementNotFoundError', async () => {
+  it('AC7: abrir uno del que no es destinatario lanza AnnouncementNotFoundError', async () => {
     const { repository, recipients } = setup();
     recipients.findUnique.mockResolvedValue(null);
     await expect(
       repository.markRead(USER_ID, ANNOUNCEMENT_ID),
     ).rejects.toBeInstanceOf(AnnouncementNotFoundError);
+  });
+
+  it('AC5: la primera apertura fija readAt solo para ese residente y las siguientes no lo cambian', async () => {
+    const repository = await publishTo([ANA, LUIS], []);
+    vi.useFakeTimers({ toFake: ['Date'] });
+
+    vi.setSystemTime(FIRST_READ);
+    const first = await repository.markRead(ANA.id, ANNOUNCEMENT_ID);
+    vi.setSystemTime(new Date('2026-11-09T14:00:00.000Z'));
+    const again = await repository.markRead(ANA.id, ANNOUNCEMENT_ID);
+
+    expect(first.readAt).toEqual(FIRST_READ);
+    expect(again.readAt).toEqual(FIRST_READ);
+    const ana = await repository.listForResident(ANA.id, VIGENTES);
+    const luis = await repository.listForResident(LUIS.id, VIGENTES);
+    expect(ana.rows.map((row) => row.readAt)).toEqual([FIRST_READ]);
+    expect(luis.rows.map((row) => row.readAt)).toEqual([null]);
+  });
+
+  it('AC6: un residente que se registra después de la publicación no recibe ese comunicado', async () => {
+    const residents = [ANA];
+    const repository = await publishTo(residents, []);
+    residents.push(SOFIA);
+
+    expect(await repository.listForResident(ANA.id, VIGENTES)).toMatchObject({
+      total: 1,
+    });
+    expect(await repository.listForResident(SOFIA.id, VIGENTES)).toEqual({
+      rows: [],
+      total: 0,
+    });
+    await expect(
+      repository.markRead(SOFIA.id, ANNOUNCEMENT_ID),
+    ).rejects.toBeInstanceOf(AnnouncementNotFoundError);
+  });
+
+  it('AC7: un residente de otra torre no ve ni puede abrir un comunicado dirigido solo a la Torre A', async () => {
+    const repository = await publishTo([ANA, PEDRO], ['tower-a']);
+
+    expect(await repository.listForResident(PEDRO.id, VIGENTES)).toEqual({
+      rows: [],
+      total: 0,
+    });
+    await expect(
+      repository.markRead(PEDRO.id, ANNOUNCEMENT_ID),
+    ).rejects.toBeInstanceOf(AnnouncementNotFoundError);
+    expect(await repository.listForResident(ANA.id, VIGENTES)).toMatchObject({
+      total: 1,
+    });
   });
 });
 

@@ -120,6 +120,15 @@ export class UserRepository {
                 phone: data.phone,
               },
             },
+            directoryPreference: {
+              create: {
+                visible: false,
+                showName: false,
+                showUnit: false,
+                showPhone: false,
+                showEmail: false,
+              },
+            },
           },
           include: WITH_PROFILE_AND_UNIT,
         });

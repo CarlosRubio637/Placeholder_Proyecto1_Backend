@@ -194,6 +194,80 @@ Una unidad puede tener como máximo 2 reservas activas. Si otra unidad toma la f
 4. Si el visitante no tiene autorización, presionar "Visitante sin autorización", llenar su nombre, documento, torre, unidad y motivo, y presionar "Enviar solicitud". Los residentes de la unidad reciben la notificación.
 5. La solicitud queda en "Esperando respuesta", que se actualiza cada 15 segundos. Si el residente la aprueba, aparece "Aprobada" y el botón "Registrar entrada"; si la rechaza o pasan 15 minutos, aparece "Rechazada" con el motivo.
 
+#### Consultar quién está dentro (Personal de seguridad)
+
+1. Abrir "Quién está dentro" en el menú.
+2. La tarjeta "Visitantes dentro" muestra el total del condominio. La tabla lista las visitas en estado Dentro, de la entrada más antigua a la más reciente, con visitante, documento, unidad, motivo, hora de entrada y tiempo dentro. Una visita de un día anterior sin salida sigue en la lista y su entrada muestra la fecha.
+3. Para filtrar, elegir una torre o escribir parte del nombre o del documento en "Buscar". La búsqueda no distingue mayúsculas ni tildes.
+4. La lista se actualiza cada 30 segundos mientras la pantalla está abierta, al volver a la pestaña y con el botón "Actualizar". Sin visitantes dentro muestra "No hay visitantes dentro del condominio.".
+
+![Lista de visitantes dentro del condominio](img/h18-quien-esta-dentro.png)
+
+#### Registrar la salida de un visitante (Personal de seguridad)
+
+1. En "Quién está dentro", presionar "Registrar salida" en la fila del visitante.
+2. Confirmar en la ventana "¿Registrar la salida de <visitante>?".
+3. El sistema muestra "Salida registrada a las HH:mm" con la hora del servidor, la fila desaparece y el total baja. La torre, la búsqueda y la página se conservan.
+4. Si otro agente ya registró la salida, la lista se recarga y muestra "Este visitante no tiene una entrada activa.".
+
+![Aviso de salida registrada](img/h17-salida-registrada.png)
+
+### Módulo 5: Paquetería
+
+#### Registrar la llegada de un paquete (Personal de seguridad)
+
+1. Abrir "Paquetes" en el menú y presionar "Registrar paquete".
+2. Elegir la torre y la unidad destino, escribir la empresa de mensajería y, si se tienen, el número de guía y las observaciones.
+3. Presionar "Registrar". El paquete recibe un código `PQ-AAAAMMDD-NNNN` y queda Pendiente de entrega.
+4. Los residentes de la unidad reciben la notificación "Tienes un paquete en portería" con la empresa y el código.
+5. La lista muestra los paquetes pendientes, 20 por página, y se puede buscar por código, guía o unidad.
+
+![Paquetería con los paquetes pendientes](img/h19-paqueteria.png)
+
+#### Consultar mis paquetes (Residente)
+
+1. Abrir "Mis paquetes" en el menú.
+2. La pestaña de pendientes muestra los paquetes de la unidad que esperan en portería, con los días de espera. La de entregados muestra quién recogió cada paquete y cuándo, con solo los últimos 4 caracteres de su documento.
+3. Cada residente ve solo los paquetes de su unidad.
+
+#### Entregar un paquete (Personal de seguridad)
+
+1. En "Paquetes", presionar "Entregar" en la fila del paquete.
+2. Revisar el resumen del paquete, escribir el nombre de quien recoge y elegir DUI o Pasaporte con su número.
+3. Presionar "Confirmar entrega" y confirmar en la ventana. El paquete pasa a Entregado y la lista muestra "Paquete entregado".
+4. Los residentes de la unidad reciben la notificación "Paquete entregado" con quién lo recogió, la fecha y la hora.
+5. Si otro agente ya lo entregó, la lista se recarga y muestra "Este paquete ya fue entregado el <fecha> a <nombre>.".
+
+![Ventana para entregar un paquete](img/h21-entregar-paquete.png)
+
+### Módulo 6: Asambleas y votaciones
+
+#### Convocar una asamblea (Administrador)
+
+1. Abrir "Asambleas" en el menú y presionar "Convocar asamblea".
+2. Escribir el título (5 a 100 caracteres), la descripción opcional y las fechas de inicio y cierre. El inicio debe ser al menos 1 hora después de ahora y el cierre, entre 1 hora y 14 días después del inicio.
+3. Agregar de 1 a 10 temas. Cada tema lleva su pregunta (5 a 200 caracteres) y de 2 a 6 opciones distintas.
+4. Presionar "Guardar". La asamblea queda Programada y se puede editar o eliminar hasta que inicia.
+5. Una tarea automática revisa cada minuto las fechas. Al llegar el inicio, la asamblea pasa a Abierta, fija las unidades habilitadas (las que tienen al menos un residente activo) y avisa a todos los residentes. Al llegar el cierre, pasa a Cerrada.
+
+![Lista de asambleas del administrador](img/h22-asambleas.png)
+
+#### Votar en una asamblea (Residente)
+
+1. Abrir "Asambleas activas". Cada tarjeta muestra el cierre y el progreso de la unidad, por ejemplo "Tu unidad votó 1 de 3 temas".
+2. Entrar a la asamblea, elegir una opción en un tema y presionar "Votar".
+3. Confirmar en la ventana. El voto es definitivo y secreto, y cuenta uno por unidad en cada tema.
+4. El tema muestra "Ya votaste", o "Tu unidad ya votó" si votó otro residente, con la fecha y la hora, sin mostrar la opción elegida.
+
+#### Consultar el resultado de una asamblea (Administrador y Residente)
+
+1. El administrador presiona "Resultado" en la lista de asambleas. El residente abre "Asambleas activas", luego "Asambleas cerradas" y presiona "Ver resultado".
+2. Mientras la asamblea está Programada se muestra "La asamblea todavía no inicia.". Mientras está Abierta se muestra cuántas unidades han votado cada tema, sin conteos, y "Los resultados se publican al cierre.".
+3. Con la asamblea Cerrada, cada tema muestra las unidades habilitadas, las que votaron con su porcentaje, la opción ganadora (o "Empate" o "Sin votos") y los votos y el porcentaje de cada opción.
+4. El registro de participación lista la unidad y la hora de cada voto, sin la opción elegida, 50 por página.
+
+![Resultado de una asamblea cerrada](img/h24-resultado.png)
+
 ### Módulo 7: Anuncios y comunicados
 
 #### Publicar un comunicado (Administrador)

@@ -78,8 +78,8 @@ function setup() {
 
 const query = (change: object = {}) => ({ page: 1, pageSize: 20, ...change });
 
-describe('AdminIncidentsService.list (H12)', () => {
-  it('pasa los filtros y normaliza la búsqueda como el searchKey', async () => {
+describe('H12. Bandeja de incidencias del administrador: priorizar y asignar', () => {
+  it('AC2: pasa los filtros y busca sin mayúsculas ni tildes, como el searchKey', async () => {
     const { service, repository } = setup();
 
     await service.list(
@@ -104,7 +104,7 @@ describe('AdminIncidentsService.list (H12)', () => {
     });
   });
 
-  it('devuelve las columnas de la bandeja y los días desde la creación', async () => {
+  it('AC1: devuelve número, título, unidad, ubicación, estado, prioridad, responsable y días desde la creación', async () => {
     const { service } = setup();
 
     const result = await service.list(query(), NOW);
@@ -130,7 +130,7 @@ describe('AdminIncidentsService.list (H12)', () => {
     });
   });
 
-  it('los días son de calendario del condominio: anoche a las 23:00 ya es 1', async () => {
+  it('AC1: los días son de calendario del condominio: anoche a las 23:00 ya es 1', async () => {
     const { service, repository } = setup();
     repository.list.mockResolvedValue({
       // 18 de noviembre, 23:00 en El Salvador.
@@ -142,8 +142,8 @@ describe('AdminIncidentsService.list (H12)', () => {
   });
 });
 
-describe('AdminIncidentsService.update (H12)', () => {
-  it('400 si no viene ni prioridad ni responsable', async () => {
+describe('H12. Bandeja de incidencias del administrador: priorizar y asignar', () => {
+  it('AC3: 400 si no viene ni prioridad ni responsable', async () => {
     const { service, repository } = setup();
     const error = await service
       .update(ADMIN, 'inc-1', {})
@@ -156,7 +156,7 @@ describe('AdminIncidentsService.update (H12)', () => {
     expect(repository.applyManagement).not.toHaveBeenCalled();
   });
 
-  it('400 con el campo si el responsable no existe o está inactivo', async () => {
+  it('AC7: 400 «El responsable no existe o está inactivo.» con el campo', async () => {
     const { service, repository } = setup();
     repository.findActiveStaff.mockResolvedValue(null);
 
@@ -171,7 +171,7 @@ describe('AdminIncidentsService.update (H12)', () => {
     expect(repository.applyManagement).not.toHaveBeenCalled();
   });
 
-  it('asigna con el nombre del responsable para el historial', async () => {
+  it('AC6: asigna con el nombre del responsable para el historial', async () => {
     const { service, repository } = setup();
     await service.update(ADMIN, 'inc-1', { assigneeId: 'staff-1' });
     expect(repository.applyManagement).toHaveBeenCalledWith({
@@ -182,14 +182,14 @@ describe('AdminIncidentsService.update (H12)', () => {
     });
   });
 
-  it('null quita el responsable sin buscarlo', async () => {
+  it('AC3: null quita el responsable sin buscarlo', async () => {
     const { service, repository } = setup();
     await service.update(ADMIN, 'inc-1', { assigneeId: null });
     expect(repository.findActiveStaff).not.toHaveBeenCalled();
     expect(repository.applyManagement.mock.calls[0][0].assignee).toBeNull();
   });
 
-  it('solo la prioridad no toca al responsable', async () => {
+  it('AC3: solo la prioridad no toca al responsable', async () => {
     const { service, repository } = setup();
     const result = await service.update(ADMIN, 'inc-1', { priority: 'ALTA' });
     expect(repository.applyManagement.mock.calls[0][0]).toMatchObject({
@@ -210,17 +210,20 @@ describe('AdminIncidentsService.update (H12)', () => {
       ConflictException,
       'La incidencia está resuelta. Reábrela para modificarla.',
     ],
-  ])('traduce %o', async (domainError, httpError, message) => {
-    const { service, repository } = setup();
-    repository.applyManagement.mockRejectedValue(domainError);
-    const error = await service
-      .update(ADMIN, 'inc-1', { priority: 'BAJA' })
-      .catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(httpError);
-    expect((error as Error).message).toBe(message);
-  });
+  ])(
+    'AC7: traduce %o al error HTTP con su mensaje',
+    async (domainError, httpError, message) => {
+      const { service, repository } = setup();
+      repository.applyManagement.mockRejectedValue(domainError);
+      const error = await service
+        .update(ADMIN, 'inc-1', { priority: 'BAJA' })
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(httpError);
+      expect((error as Error).message).toBe(message);
+    },
+  );
 
-  it('otros errores no se disfrazan', async () => {
+  it('AC7: otros errores no se disfrazan', async () => {
     const { service, repository } = setup();
     repository.applyManagement.mockRejectedValue(new Error('db caída'));
     await expect(
@@ -229,14 +232,14 @@ describe('AdminIncidentsService.update (H12)', () => {
   });
 });
 
-describe('AdminIncidentsService.changeStatus (H13)', () => {
+describe('H13. Cambio de estado y seguimiento de incidencias', () => {
   const dto = {
     toStatus: 'RESUELTO' as const,
     note: 'Se cambió la tubería del baño.',
     expectedStatus: 'EN_PROCESO' as const,
   };
 
-  it('aplica el cambio con la hora del servidor y responde incidencia y evento', async () => {
+  it('AC5: aplica el cambio con la hora del servidor y responde incidencia y evento', async () => {
     const { service, repository } = setup();
 
     const result = await service.changeStatus(ADMIN, 'inc-1', dto, NOW);
@@ -262,7 +265,7 @@ describe('AdminIncidentsService.changeStatus (H13)', () => {
     expect(result).not.toHaveProperty('reporterId');
   });
 
-  it('avisa al residente que reportó con el texto de H13', async () => {
+  it('AC8: avisa al residente que reportó con el título, el mensaje, el módulo y la referencia de la card', async () => {
     const { service, notifications } = setup();
     await service.changeStatus(ADMIN, 'inc-1', dto, NOW);
     expect(notifications.send).toHaveBeenCalledWith({
@@ -275,7 +278,7 @@ describe('AdminIncidentsService.changeStatus (H13)', () => {
     });
   });
 
-  it('recorta el aviso a 500 caracteres; la observación completa queda en el historial', async () => {
+  it('AC8: recorta el aviso a 500 caracteres; la observación completa queda en el historial', async () => {
     const { service, repository, notifications } = setup();
     const note = 'x'.repeat(500);
     repository.applyStatusChange.mockResolvedValue({
@@ -305,7 +308,7 @@ describe('AdminIncidentsService.changeStatus (H13)', () => {
     expect(result.event.note).toHaveLength(500);
   });
 
-  it('si el aviso falla, el cambio igual responde bien', async () => {
+  it('AC8: si el aviso falla, el cambio igual responde bien', async () => {
     const { service, notifications } = setup();
     notifications.send.mockRejectedValue(new Error('caído'));
     await expect(
@@ -334,14 +337,17 @@ describe('AdminIncidentsService.changeStatus (H13)', () => {
       ConflictException,
       'Asigna un responsable antes de iniciar la atención.',
     ],
-  ])('traduce %o', async (domainError, httpError, message) => {
-    const { service, repository, notifications } = setup();
-    repository.applyStatusChange.mockRejectedValue(domainError);
-    const error = await service
-      .changeStatus(ADMIN, 'inc-1', dto, NOW)
-      .catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(httpError);
-    expect((error as Error).message).toBe(message);
-    expect(notifications.send).not.toHaveBeenCalled();
-  });
+  ])(
+    'AC6: traduce %o al error HTTP con su mensaje y no avisa',
+    async (domainError, httpError, message) => {
+      const { service, repository, notifications } = setup();
+      repository.applyStatusChange.mockRejectedValue(domainError);
+      const error = await service
+        .changeStatus(ADMIN, 'inc-1', dto, NOW)
+        .catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(httpError);
+      expect((error as Error).message).toBe(message);
+      expect(notifications.send).not.toHaveBeenCalled();
+    },
+  );
 });

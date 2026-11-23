@@ -29,12 +29,12 @@ const REQUEST = {
   unitId: UNIT,
 };
 
-describe('SearchVisitsQueryDto (H16)', () => {
+describe('H16. Registro de entrada de visitantes', () => {
   it.each([
     ['un código en minúsculas', ' k7m2qx ', 'K7M2QX'],
     ['un DUI', '01234567-8', '01234567-8'],
     ['un pasaporte', 'a1234567', 'A1234567'],
-  ])('acepta %s y lo normaliza', async (_caso, q, expected) => {
+  ])('AC1: acepta %s y lo normaliza', async (_caso, q, expected) => {
     const { dto, fields } = await check(SearchVisitsQueryDto, { q });
     expect(fields).toEqual([]);
     expect(dto.q).toBe(expected);
@@ -46,21 +46,21 @@ describe('SearchVisitsQueryDto (H16)', () => {
     ['de 13 caracteres', 'A123456789012'],
     ['con espacios en medio', 'K7M 2QX'],
     ['con símbolos', "K7M2Q'"],
-  ])('rechaza una búsqueda %s', async (_caso, q) => {
+  ])('AC1: rechaza una búsqueda %s', async (_caso, q) => {
     const { fields, messages } = await check(SearchVisitsQueryDto, { q });
     expect(fields).toEqual(['q']);
     expect(messages).toEqual([ENTRY_MESSAGES.search]);
   });
 
-  it('la búsqueda es obligatoria', async () => {
+  it('AC1: la búsqueda es obligatoria', async () => {
     await expect(check(SearchVisitsQueryDto, {})).resolves.toMatchObject({
       fields: ['q'],
     });
   });
 });
 
-describe('CreateVisitRequestDto (H16)', () => {
-  it('acepta una solicitud y limpia el nombre como H14', async () => {
+describe('H16. Registro de entrada de visitantes', () => {
+  it('AC2: acepta una solicitud y limpia el nombre como H14', async () => {
     const { dto, fields } = await check(CreateVisitRequestDto, REQUEST);
     expect(fields).toEqual([]);
     expect(dto.visitorName).toBe('Rosa Martínez');
@@ -99,7 +99,7 @@ describe('CreateVisitRequestDto (H16)', () => {
       ENTRY_MESSAGES.unitId,
     ],
   ])(
-    'rechaza %s con el mensaje de H14',
+    'AC2: rechaza %s con el mensaje de H14',
     async (_caso, change, field, message) => {
       const { fields, messages } = await check(CreateVisitRequestDto, {
         ...REQUEST,
@@ -110,7 +110,7 @@ describe('CreateVisitRequestDto (H16)', () => {
     },
   );
 
-  it('no acepta fecha ni hora: una solicitud siempre es para hoy', async () => {
+  it('AC2: no acepta fecha ni hora: una solicitud siempre es para hoy', async () => {
     const { fields } = await check(CreateVisitRequestDto, {
       ...REQUEST,
       visitDate: '2026-11-20',

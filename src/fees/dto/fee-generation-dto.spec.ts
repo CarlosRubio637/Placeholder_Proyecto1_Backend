@@ -1,5 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
+import { validationExceptionFactory } from '@Common/validation';
 import { FEE_MESSAGES } from '../fees.constants.js';
 import { FeeGenerationsPageQueryDto, GenerateFeesDto } from './index.js';
 
@@ -11,6 +12,7 @@ async function check<T extends object>(cls: new () => T, plain: object) {
   });
   return {
     dto,
+    errors,
     fields: errors.map((error) => error.property),
     messages: errors.flatMap((error) => Object.values(error.constraints ?? {})),
   };
@@ -18,41 +20,8 @@ async function check<T extends object>(cls: new () => T, plain: object) {
 
 const valid = { period: '2026-12', amount: 35.5, dueDate: '2026-12-10' };
 
-describe('DTO de la generación de cuotas', () => {
-  it.each([1, 19.99, 35.5, 5000])('acepta el monto %s', async (amount) => {
-    const { fields } = await check(GenerateFeesDto, { ...valid, amount });
-    expect(fields).toEqual([]);
-  });
-
-  it.each([0, 0.99, 5000.01, 35.555, '35.50'])(
-    'rechaza el monto %s con el mensaje de la card',
-    async (amount) => {
-      const { fields, messages } = await check(GenerateFeesDto, {
-        ...valid,
-        amount,
-      });
-      expect(fields).toEqual(['amount']);
-      expect(messages).toContain(FEE_MESSAGES.amount);
-    },
-  );
-
-  it('rechaza un periodo sin formato AAAA-MM y una fecha imposible', async () => {
-    const badPeriod = await check(GenerateFeesDto, {
-      ...valid,
-      period: '2026-13',
-    });
-    expect(badPeriod.fields).toEqual(['period']);
-    expect(badPeriod.messages).toContain(FEE_MESSAGES.periodFormat);
-
-    const badDate = await check(GenerateFeesDto, {
-      ...valid,
-      dueDate: '2026-02-30',
-    });
-    expect(badDate.fields).toEqual(['dueDate']);
-    expect(badDate.messages).toContain(FEE_MESSAGES.dueDateFormat);
-  });
-
-  it('recorta el concepto, toma el vacío como ausente y rechaza más de 60 caracteres', async () => {
+describe('H3. Generación mensual de cuotas', () => {
+  it('AC1: recorta el concepto, toma el vacío como ausente y rechaza más de 60 caracteres', async () => {
     const blank = await check(GenerateFeesDto, { ...valid, concept: '   ' });
     expect(blank.dto.concept).toBeUndefined();
     expect(blank.fields).toEqual([]);
@@ -71,6 +40,51 @@ describe('DTO de la generación de cuotas', () => {
     expect(tooLong.messages).toContain(FEE_MESSAGES.concept);
   });
 
+  it.each([1, 19.99, 35.5, 5000])('AC6: acepta el monto %s', async (amount) => {
+    const { fields } = await check(GenerateFeesDto, { ...valid, amount });
+    expect(fields).toEqual([]);
+  });
+
+  it.each([0, 0.99, 5000.01, 35.555, '35.50'])(
+    'AC6: rechaza el monto %s con el mensaje de la card',
+    async (amount) => {
+      const { fields, messages } = await check(GenerateFeesDto, {
+        ...valid,
+        amount,
+      });
+      expect(fields).toEqual(['amount']);
+      expect(messages).toContain(FEE_MESSAGES.amount);
+    },
+  );
+
+  it('AC6: rechaza un periodo sin formato AAAA-MM y una fecha imposible', async () => {
+    const badPeriod = await check(GenerateFeesDto, {
+      ...valid,
+      period: '2026-13',
+    });
+    expect(badPeriod.fields).toEqual(['period']);
+    expect(badPeriod.messages).toContain(FEE_MESSAGES.periodFormat);
+
+    const badDate = await check(GenerateFeesDto, {
+      ...valid,
+      dueDate: '2026-02-30',
+    });
+    expect(badDate.fields).toEqual(['dueDate']);
+    expect(badDate.messages).toContain(FEE_MESSAGES.dueDateFormat);
+  });
+
+  it('AC6: responde 400 con el campo que falló', async () => {
+    const { errors } = await check(GenerateFeesDto, { ...valid, amount: 0 });
+    const exception = validationExceptionFactory(errors);
+    expect(exception.getStatus()).toBe(400);
+    expect(exception.getResponse()).toMatchObject({
+      field: 'amount',
+      message: [FEE_MESSAGES.amount],
+    });
+  });
+});
+
+describe('DTO de la generación de cuotas', () => {
   it('el historial pide la página 1 de 10 filas por defecto y no acepta más de 50', async () => {
     const defaults = await check(FeeGenerationsPageQueryDto, {});
     expect(defaults.dto).toMatchObject({ page: 1, pageSize: 10 });

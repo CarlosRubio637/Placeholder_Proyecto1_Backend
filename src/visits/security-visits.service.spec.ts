@@ -91,8 +91,8 @@ async function conflictOf(promise: Promise<unknown>) {
   };
 }
 
-describe('SecurityVisitsService.search (H16)', () => {
-  it('busca solo visitas de hoy por código o documento exactos', async () => {
+describe('H16. Registro de entrada de visitantes', () => {
+  it('AC1: busca la autorización de hoy por código de 6 caracteres o por número de documento', async () => {
     const { service, prisma } = setup();
     prisma.visit.findMany.mockResolvedValue([row()]);
 
@@ -120,7 +120,7 @@ describe('SecurityVisitsService.search (H16)', () => {
     ]);
   });
 
-  it('"hoy" es el día del condominio, no el del servidor en UTC', async () => {
+  it('AC1: "hoy" es el día del condominio, no el del servidor en UTC', async () => {
     const { service, prisma } = setup();
     // 23:30 del 17 en El Salvador ya es 18 en UTC.
     await service.search('K7M2QX', new Date('2026-11-18T05:30:00Z'));
@@ -130,8 +130,8 @@ describe('SecurityVisitsService.search (H16)', () => {
   });
 });
 
-describe('SecurityVisitsService.listRequests (H16)', () => {
-  it('lista solo las solicitudes sin autorización de hoy, la más reciente primero', async () => {
+describe('H16. Registro de entrada de visitantes', () => {
+  it('AC3: «Esperando respuesta» lista las solicitudes sin autorización de hoy, la más reciente primero', async () => {
     const { service, prisma } = setup();
     await service.listRequests(NOW);
     expect(prisma.visit.findMany.mock.calls[0][0]).toMatchObject({
@@ -143,7 +143,7 @@ describe('SecurityVisitsService.listRequests (H16)', () => {
     });
   });
 
-  it('expiresAt es createdAt + 15 minutos solo mientras está pendiente', async () => {
+  it('AC2: el tiempo restante es de 15 minutos (expiresAt) solo mientras está pendiente', async () => {
     const { service, prisma } = setup();
     const createdAt = new Date('2026-11-17T16:00:00Z');
     prisma.visit.findMany.mockResolvedValue([
@@ -165,8 +165,8 @@ describe('SecurityVisitsService.listRequests (H16)', () => {
   });
 });
 
-describe('SecurityVisitsService.createRequest (H16)', () => {
-  it('crea la solicitud Pendiente para hoy, válida hasta las 22:00', async () => {
+describe('H16. Registro de entrada de visitantes', () => {
+  it('AC8: crea la solicitud en Pendiente de autorización para hoy, válida hasta las 22:00', async () => {
     const { service, prisma } = setup();
 
     const result = await service.createRequest(GUARD, REQUEST, NOW);
@@ -191,7 +191,7 @@ describe('SecurityVisitsService.createRequest (H16)', () => {
     });
   });
 
-  it('avisa a los residentes de la unidad con el texto de H16', async () => {
+  it('AC8: avisa a los residentes de la unidad destino con el título, el mensaje, el módulo y la referencia de la card', async () => {
     const { service, notifications } = setup();
     await service.createRequest(GUARD, REQUEST, NOW);
 
@@ -205,7 +205,7 @@ describe('SecurityVisitsService.createRequest (H16)', () => {
     });
   });
 
-  it('si el aviso falla, la solicitud igual queda creada', async () => {
+  it('AC8: si el aviso falla, la solicitud igual queda creada', async () => {
     const { service, notifications } = setup();
     notifications.send.mockRejectedValue(new Error('caído'));
     await expect(
@@ -213,7 +213,7 @@ describe('SecurityVisitsService.createRequest (H16)', () => {
     ).resolves.toMatchObject({ status: 'PENDIENTE_AUTORIZACION' });
   });
 
-  it('guarda el pasaporte en mayúsculas', async () => {
+  it('AC2: guarda el pasaporte en mayúsculas, como H14', async () => {
     const { service, prisma } = setup();
     await service.createRequest(
       GUARD,
@@ -229,7 +229,7 @@ describe('SecurityVisitsService.createRequest (H16)', () => {
     );
   });
 
-  it('404 si la unidad no existe', async () => {
+  it('AC9: 404 si la unidad no existe', async () => {
     const { service, prisma } = setup();
     prisma.unit.findUnique.mockResolvedValue(null);
     await expect(
@@ -237,7 +237,7 @@ describe('SecurityVisitsService.createRequest (H16)', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('409 si la unidad no tiene residentes activos', async () => {
+  it('AC9: 409 «La unidad no tiene residentes registrados.»', async () => {
     const { service, prisma } = setup();
     prisma.unit.findUnique.mockResolvedValue({
       id: 'unit-1',
@@ -249,7 +249,7 @@ describe('SecurityVisitsService.createRequest (H16)', () => {
     expect(prisma.visit.create).not.toHaveBeenCalled();
   });
 
-  it('409 si el visitante ya está dentro', async () => {
+  it('AC7: no crea la solicitud si el visitante ya está dentro (409)', async () => {
     const { service, prisma } = setup();
     prisma.visit.findFirst.mockResolvedValue({ id: 'otra' });
 
@@ -267,16 +267,19 @@ describe('SecurityVisitsService.createRequest (H16)', () => {
     ['05:59', '2026-11-17T11:59:00Z'],
     ['22:00', '2026-11-18T04:00:00Z'],
     ['23:30', '2026-11-18T05:30:00Z'],
-  ])('409 fuera del horario de visitas (%s)', async (_hora, instant) => {
-    const { service, prisma } = setup();
-    const body = await conflictOf(
-      service.createRequest(GUARD, REQUEST, new Date(instant)),
-    );
-    expect(body.message).toBe('Fuera del horario de visitas.');
-    expect(prisma.unit.findUnique).not.toHaveBeenCalled();
-  });
+  ])(
+    'AC9: 409 «Fuera del horario de visitas.» a las %s',
+    async (_hora, instant) => {
+      const { service, prisma } = setup();
+      const body = await conflictOf(
+        service.createRequest(GUARD, REQUEST, new Date(instant)),
+      );
+      expect(body.message).toBe('Fuera del horario de visitas.');
+      expect(prisma.unit.findUnique).not.toHaveBeenCalled();
+    },
+  );
 
-  it('a las 06:00 ya se puede enviar', async () => {
+  it('AC9: a las 06:00 ya se puede enviar', async () => {
     const { service } = setup();
     await expect(
       service.createRequest(GUARD, REQUEST, new Date('2026-11-17T12:00:00Z')),
@@ -284,8 +287,8 @@ describe('SecurityVisitsService.createRequest (H16)', () => {
   });
 });
 
-describe('SecurityVisitsService.registerEntry (H16)', () => {
-  it('pasa a Dentro con la hora del servidor y el agente', async () => {
+describe('H16. Registro de entrada de visitantes', () => {
+  it('AC5: registrar la entrada pasa de Autorizada a Dentro con la hora del servidor y el agente', async () => {
     const { service, tx } = setup();
 
     const result = await service.registerEntry(GUARD, 'visit-1', NOW);
@@ -297,7 +300,7 @@ describe('SecurityVisitsService.registerEntry (H16)', () => {
     expect(result).toEqual({ id: 'visit-1', status: 'DENTRO', entryAt: NOW });
   });
 
-  it('toma un candado por documento dentro de la transacción', async () => {
+  it('AC7: la comprobación de «ya está dentro» toma un candado por documento en la transacción', async () => {
     const { service, tx } = setup();
     await service.registerEntry(GUARD, 'visit-1', NOW);
     expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
@@ -307,7 +310,7 @@ describe('SecurityVisitsService.registerEntry (H16)', () => {
     );
   });
 
-  it('404 si la visita no existe', async () => {
+  it('AC6: 404 si la visita no existe', async () => {
     const { service, tx } = setup();
     tx.visit.findUnique.mockResolvedValue(null);
     await expect(service.registerEntry(GUARD, 'x', NOW)).rejects.toBeInstanceOf(
@@ -322,33 +325,43 @@ describe('SecurityVisitsService.registerEntry (H16)', () => {
     ['VENCIDA', 'Vencida'],
     ['DENTRO', 'Dentro'],
     ['FINALIZADA', 'Finalizada'],
-  ])('409 con el estado actual si está %s', async (status, label) => {
-    const { service, tx } = setup();
-    tx.visit.findUnique.mockResolvedValue(row({ status }));
+  ])(
+    'AC6: 409 con el estado actual si la visita está %s',
+    async (status, label) => {
+      const { service, tx } = setup();
+      tx.visit.findUnique.mockResolvedValue(row({ status }));
 
-    const body = await conflictOf(service.registerEntry(GUARD, 'visit-1', NOW));
+      const body = await conflictOf(
+        service.registerEntry(GUARD, 'visit-1', NOW),
+      );
 
-    expect(body).toMatchObject({
-      message: `No se puede registrar la entrada: la visita está ${label}.`,
-      status,
-    });
-    expect(tx.visit.updateMany).not.toHaveBeenCalled();
-  });
+      expect(body).toMatchObject({
+        message: `No se puede registrar la entrada: la visita está ${label}.`,
+        status,
+      });
+      expect(tx.visit.updateMany).not.toHaveBeenCalled();
+    },
+  );
 
   it.each([
     ['antes de las 06:00', '2026-11-17T11:59:00Z'],
     ['después de las 22:00', '2026-11-18T04:01:00Z'],
     ['otro día', '2026-11-19T16:00:00Z'],
-  ])('409 si se presenta %s', async (_caso, instant) => {
-    const { service, tx } = setup();
-    const body = await conflictOf(
-      service.registerEntry(GUARD, 'visit-1', new Date(instant)),
-    );
-    expect(body.message).toBe('La autorización no es válida en este horario.');
-    expect(tx.visit.updateMany).not.toHaveBeenCalled();
-  });
+  ])(
+    'AC6: 409 «La autorización no es válida en este horario.» si se presenta %s',
+    async (_caso, instant) => {
+      const { service, tx } = setup();
+      const body = await conflictOf(
+        service.registerEntry(GUARD, 'visit-1', new Date(instant)),
+      );
+      expect(body.message).toBe(
+        'La autorización no es válida en este horario.',
+      );
+      expect(tx.visit.updateMany).not.toHaveBeenCalled();
+    },
+  );
 
-  it('409 si el mismo visitante tiene otra visita Dentro', async () => {
+  it('AC7: 409 «Este visitante ya está dentro. Registra su salida primero.»', async () => {
     const { service, tx } = setup();
     tx.visit.findFirst.mockResolvedValue({ id: 'otra' });
 
@@ -360,7 +373,7 @@ describe('SecurityVisitsService.registerEntry (H16)', () => {
     expect(tx.visit.updateMany).not.toHaveBeenCalled();
   });
 
-  it('si otra petición la registró justo antes, 409 con el estado nuevo', async () => {
+  it('AC6: si otra petición la registró justo antes, 409 con el estado nuevo', async () => {
     const { service, tx } = setup();
     tx.visit.updateMany.mockResolvedValue({ count: 0 });
     tx.visit.findUniqueOrThrow.mockResolvedValue({ status: 'DENTRO' });

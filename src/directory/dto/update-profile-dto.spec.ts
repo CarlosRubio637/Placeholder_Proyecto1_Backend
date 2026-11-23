@@ -28,6 +28,25 @@ const valid = {
   },
 };
 
+describe('H28. Perfil y privacidad en el directorio', () => {
+  it.each(['78451290', '7845-12a0', '', undefined])(
+    'AC6: rechaza el teléfono %j con el mensaje de la card',
+    async (phone) => {
+      const { fields, messages } = await check({ ...valid, phone });
+      expect(fields).toEqual(['phone']);
+      expect(messages).toContain(DIRECTORY_MESSAGES.phone);
+    },
+  );
+
+  it('AC7: rechaza un userId en el cuerpo para no editar el perfil de otro residente', async () => {
+    const { errors, fields } = await check({ ...valid, userId: 'user-2' });
+    expect(fields).toEqual(['userId']);
+    expect(Object.keys(errors[0].constraints ?? {})).toEqual([
+      'whitelistValidation',
+    ]);
+  });
+});
+
 describe('DTO del perfil', () => {
   it('acepta un perfil válido', async () => {
     const { fields } = await check(valid);
@@ -39,15 +58,6 @@ describe('DTO del perfil', () => {
     expect(fields).toEqual([]);
     expect(dto.phone).toBe('7845-1290');
   });
-
-  it.each(['78451290', '7845-12a0', '', undefined])(
-    'rechaza el teléfono %j con el mensaje de la card',
-    async (phone) => {
-      const { fields, messages } = await check({ ...valid, phone });
-      expect(fields).toEqual(['phone']);
-      expect(messages).toContain(DIRECTORY_MESSAGES.phone);
-    },
-  );
 
   it('rechaza el perfil sin preferencias', async () => {
     const { fields, messages } = await check({ phone: valid.phone });

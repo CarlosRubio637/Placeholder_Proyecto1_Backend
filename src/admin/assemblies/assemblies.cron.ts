@@ -129,7 +129,7 @@ export class AssembliesCronService {
           `Asamblea abierta: ${assembly.title}`,
           NOTIFICATION_TITLE_MAX,
         ),
-        message: `Ya puedes votar ${assembly.topicCount} temas hasta el ${closesAt}.`,
+        message: `Ya puedes votar ${this.topicsText(assembly.topicCount)} hasta el ${closesAt.replace(/\.$/, '')}.`,
         sourceModule: SourceModule.VOTACIONES,
         reference: { type: 'assembly', id: assembly.id },
       });
@@ -242,6 +242,11 @@ export class AssembliesCronService {
       // Una asamblea tiene hasta 10 temas; el margen evita cortes en máquinas lentas.
       { timeout: 20_000 },
     );
+  }
+
+  /** DEF-302: "1 tema" en singular; el resto en plural. */
+  private topicsText(count: number): string {
+    return count === 1 ? '1 tema' : `${count} temas`;
   }
 
   private truncate(text: string, max: number): string {

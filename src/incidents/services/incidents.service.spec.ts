@@ -76,8 +76,8 @@ async function badRequestOf(promise: Promise<unknown>) {
   };
 }
 
-describe('IncidentsService.create', () => {
-  it('guarda fotos, crea la incidencia y responde con número, estado y URLs', async () => {
+describe('H10. Registro de incidencia con evidencia', () => {
+  it('AC4: crea la incidencia con la unidad y el autor del residente, y responde número, Pendiente, Media y fotos', async () => {
     const { service, repository, storage } = setup();
 
     const result = await service.create(resident, dto, [png(), jpg()]);
@@ -108,7 +108,7 @@ describe('IncidentsService.create', () => {
     });
   });
 
-  it('avisa a los administradores activos con el texto de H10', async () => {
+  it('AC7: avisa a los administradores activos con el título, el mensaje, el módulo y la referencia de la card', async () => {
     const { service, notifications } = setup();
     const result = await service.create(resident, dto, [png()]);
     expect(notifications.send).toHaveBeenCalledWith({
@@ -120,14 +120,14 @@ describe('IncidentsService.create', () => {
     });
   });
 
-  it('no avisa si no hay administradores activos', async () => {
+  it('AC7: no avisa si no hay administradores activos', async () => {
     const { service, repository, notifications } = setup();
     repository.findActiveAdminIds.mockResolvedValue([]);
     await service.create(resident, dto, [png()]);
     expect(notifications.send).not.toHaveBeenCalled();
   });
 
-  it('si el aviso falla, la incidencia queda registrada igual', async () => {
+  it('AC7: si el aviso falla, la incidencia queda registrada igual', async () => {
     const { service, notifications } = setup();
     notifications.send.mockRejectedValue(new Error('caído'));
     await expect(service.create(resident, dto, [png()])).resolves.toMatchObject(
@@ -155,7 +155,7 @@ describe('IncidentsService.create', () => {
       'Solo se permiten imágenes JPG o PNG de hasta 5 MB.',
     ],
   ])(
-    'rechaza %s con 400 en photos y no guarda nada',
+    'AC5: rechaza %s con 400 en photos y no guarda nada',
     async (_caso, files, message) => {
       const { service, storage, repository } = setup();
       const body = await badRequestOf(service.create(resident, dto, files));
@@ -165,7 +165,7 @@ describe('IncidentsService.create', () => {
     },
   );
 
-  it('si falla la transacción, borra las fotos ya guardadas (todo o nada)', async () => {
+  it('AC6: si falla la transacción, borra las fotos ya guardadas (todo o nada)', async () => {
     const { service, repository, storage, notifications } = setup();
     repository.create.mockRejectedValue(new Error('db caída'));
 
@@ -179,7 +179,7 @@ describe('IncidentsService.create', () => {
     expect(notifications.send).not.toHaveBeenCalled();
   });
 
-  it('si falla el guardado de archivos, no crea la incidencia', async () => {
+  it('AC6: si falla el guardado de archivos, no crea la incidencia', async () => {
     const { service, repository, storage } = setup();
     storage.saveAll.mockRejectedValue(new Error('disco lleno'));
     await expect(service.create(resident, dto, [png()])).rejects.toThrow(
@@ -189,7 +189,7 @@ describe('IncidentsService.create', () => {
   });
 });
 
-describe('IncidentsService.getPhoto', () => {
+describe('H11. Mis incidencias y detalle con historial', () => {
   const photo = {
     id: 'p1',
     path: 'incidencias/i1/a.png',
@@ -197,7 +197,7 @@ describe('IncidentsService.getPhoto', () => {
     incident: { unitId: 'unit-1' },
   };
 
-  it('el residente de la unidad y el administrador pueden verla', async () => {
+  it('AC5: el residente de la unidad y el administrador pueden ver las fotografías', async () => {
     const { service, repository, storage } = setup();
     repository.findPhoto.mockResolvedValue(photo);
     storage.open.mockResolvedValue({ stream: 'stream', size: 10 });
@@ -210,7 +210,7 @@ describe('IncidentsService.getPhoto', () => {
     await expect(service.getPhoto(admin, 'p1')).resolves.toBeTruthy();
   });
 
-  it('un residente de otra unidad recibe 404, como si no existiera (H11)', async () => {
+  it('AC7: un residente de otra unidad recibe 404 al pedir una fotografía, como si no existiera', async () => {
     const { service, repository } = setup();
     repository.findPhoto.mockResolvedValue(photo);
     const other = { ...resident, unitId: 'unit-2' } as User;
@@ -219,7 +219,7 @@ describe('IncidentsService.getPhoto', () => {
     );
   });
 
-  it('404 si la foto no existe o falta el archivo', async () => {
+  it('AC7: 404 si la fotografía no existe o falta el archivo', async () => {
     const { service, repository, storage } = setup();
     repository.findPhoto.mockResolvedValue(null);
     await expect(service.getPhoto(resident, 'p1')).rejects.toBeInstanceOf(
@@ -234,8 +234,8 @@ describe('IncidentsService.getPhoto', () => {
   });
 });
 
-describe('IncidentsService.listMine (H11)', () => {
-  it('filtra por la unidad de la sesión y devuelve la página pedida', async () => {
+describe('H11. Mis incidencias y detalle con historial', () => {
+  it('AC5: la lista sale de la unidad de la sesión: cualquier residente de la unidad ve todas', async () => {
     const { service, repository } = setup();
     repository.listByUnit.mockResolvedValue({
       data: [{ id: 'i1' }],
@@ -262,7 +262,7 @@ describe('IncidentsService.listMine (H11)', () => {
     });
   });
 
-  it('un usuario sin unidad recibe 403', async () => {
+  it('AC7: una cuenta sin unidad no puede pedir la lista (403)', async () => {
     const { service } = setup();
     const sinUnidad = { ...resident, unitId: null } as User;
     await expect(
@@ -271,7 +271,7 @@ describe('IncidentsService.listMine (H11)', () => {
   });
 });
 
-describe('IncidentsService.getDetail (H11)', () => {
+describe('H11. Mis incidencias y detalle con historial', () => {
   const detail = {
     id: 'i1',
     number: 'INC-2026-00001',
@@ -317,7 +317,7 @@ describe('IncidentsService.getDetail (H11)', () => {
     ],
   };
 
-  it('arma el detalle con fotos, responsable e historial', async () => {
+  it('AC3: arma el detalle con fotos, responsable e historial; los eventos del administrador dicen Administración', async () => {
     const { service, repository } = setup();
     repository.findDetail.mockResolvedValue(detail);
 
@@ -337,7 +337,7 @@ describe('IncidentsService.getDetail (H11)', () => {
     expect(result).not.toHaveProperty('unitId');
   });
 
-  it('el administrador ve cualquier incidencia', async () => {
+  it('AC5: el administrador ve el detalle de cualquier incidencia', async () => {
     const { service, repository } = setup();
     repository.findDetail.mockResolvedValue(detail);
     const admin = { id: 'a', role: 'ADMINISTRADOR', unitId: null } as User;
@@ -346,7 +346,7 @@ describe('IncidentsService.getDetail (H11)', () => {
     });
   });
 
-  it('404 si no existe o es de otra unidad', async () => {
+  it('AC7: el detalle responde 404 si no existe o es de otra unidad', async () => {
     const { service, repository } = setup();
     repository.findDetail.mockResolvedValue(null);
     await expect(service.getDetail(resident, 'i1')).rejects.toBeInstanceOf(

@@ -89,6 +89,35 @@ Si la edición o el bloqueo cancela reservas confirmadas, el backend responde 40
 | POST | /api/v1/seguridad/visitas/solicitudes | Pide autorización a la unidad para un visitante sin aviso y notifica a sus residentes. Una unidad sin residentes o fuera de 06:00 a 22:00 responde 409 (H16) | Personal de seguridad |
 | GET | /api/v1/seguridad/visitas/solicitudes | Solicitudes de hoy con su estado, la más reciente primero (H16) | Personal de seguridad |
 | POST | /api/v1/seguridad/visitas/:id/entrada | Registra la entrada de una visita Autorizada y vigente; pasa a Dentro. Fuera de vigencia, en otro estado o con el visitante ya dentro responde 409 (H16) | Personal de seguridad |
+| POST | /api/v1/seguridad/visitas/:id/salida | Registra la salida de una visita Dentro; pasa a Finalizada con la hora del servidor y el agente. Si no está Dentro, o si otro agente ya registró la salida, responde 409 con "Este visitante no tiene una entrada activa." (H17) | Personal de seguridad |
+| GET | /api/v1/seguridad/visitas/dentro | Visitas en estado Dentro sin importar la fecha, la entrada más antigua primero, con `minutesInside` calculado en el servidor y `totalInside` del condominio. Filtros `towerId` y `search` (nombre o documento, máximo 80, sin distinguir mayúsculas ni tildes); 50 por página, máximo 100 (H18) | Personal de seguridad |
+
+### Módulo 5: Paquetería
+
+| Método | Ruta | Descripción | Roles |
+|---|---|---|---|
+| POST | /api/v1/seguridad/paquetes | Registra la llegada de un paquete para una unidad con residentes activos. Genera el código `PQ-AAAAMMDD-NNNN` y notifica a los residentes de la unidad. Una unidad sin residentes activos responde 409 (H19) | Personal de seguridad |
+| GET | /api/v1/seguridad/paquetes | Paquetes del más reciente al más antiguo. Filtros `status`, `towerId`, `unitId` y `search` (código, guía o unidad); 20 por página (H19) | Personal de seguridad |
+| POST | /api/v1/seguridad/paquetes/:id/entrega | Entrega un paquete Pendiente con el nombre y el documento (DUI o pasaporte) de quien recoge, y notifica a la unidad. Si ya fue entregado responde 409 con la fecha y el nombre; si no existe, 404 (H21) | Personal de seguridad |
+| GET | /api/v1/paquetes/mios | Paquetes de la unidad del residente por `status`, con `pendingCount` y los días de espera. De quien recogió solo muestra los últimos 4 caracteres del documento; 10 por página (H20) | Residente |
+
+### Módulo 6: Asambleas y votaciones
+
+| Método | Ruta | Descripción | Roles |
+|---|---|---|---|
+| POST | /api/v1/admin/asambleas | Convoca una asamblea Programada con 1 a 10 temas de 2 a 6 opciones. El inicio va al menos 1 hora después de ahora y el cierre, entre 1 hora y 14 días después del inicio (H22) | Administrador |
+| GET | /api/v1/admin/asambleas | Asambleas de la más reciente a la más antigua, con temas y unidades que votaron. Filtro `status`; 10 por página, máximo 50 (H22) | Administrador |
+| GET | /api/v1/admin/asambleas/:id | Detalle de una asamblea con sus temas y opciones (H22) | Administrador |
+| PUT | /api/v1/admin/asambleas/:id | Edita una asamblea Programada y reemplaza sus temas. Abierta o Cerrada responde 409 (H22) | Administrador |
+| DELETE | /api/v1/admin/asambleas/:id | Elimina una asamblea Programada. Abierta o Cerrada responde 409 (H22) | Administrador |
+| GET | /api/v1/asambleas/activas | Asambleas Abiertas donde la unidad está habilitada, el cierre más cercano primero, con los temas que ya votó la unidad (H23) | Residente |
+| GET | /api/v1/asambleas/:id | Detalle para votar, con el estado de voto de la unidad en cada tema, sin la opción elegida. Una unidad no habilitada recibe 404 (H23) | Residente |
+| POST | /api/v1/asambleas/temas/:temaId/votos | Emite el voto de la unidad. Participación y voto se guardan por separado en una transacción para que el voto sea secreto. Ya votado, o asamblea no Abierta o pasada su hora de cierre, responde 409; unidad no habilitada, 403 (H23) | Residente |
+| GET | /api/v1/asambleas/:id/resultado | Resultado por tema. Los conteos (`totalVotes`, `votes`, `pct`) solo salen con la asamblea Cerrada y vienen de `topic_results`, calculado al cierre (H24) | Administrador, Residente |
+| GET | /api/v1/asambleas/temas/:temaId/participacion | Unidades que votaron el tema y su hora, sin la opción elegida; 50 por página (H24) | Administrador, Residente |
+| GET | /api/v1/asambleas/cerradas | Asambleas Cerradas, la más reciente primero; 10 por página (H24) | Residente |
+
+Una tarea automática corre cada minuto. Abre las asambleas Programadas que llegaron a su inicio, fija las unidades habilitadas y avisa a los residentes. Cierra las Abiertas que llegaron a su cierre y guarda el resultado de cada tema en la misma transacción.
 
 ### Módulo 7: Anuncios y comunicados
 

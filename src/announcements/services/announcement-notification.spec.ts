@@ -9,8 +9,8 @@ const announcement = {
   towerIds: ['t-a'],
 };
 
-describe('aviso de un comunicado', () => {
-  it('arma el aviso de un comunicado por torres', () => {
+describe('H25. Publicación de comunicados segmentados', () => {
+  it('AC8: arma el aviso de un comunicado por torres', () => {
     expect(buildAnnouncementNotification(announcement)).toEqual({
       recipient: { type: 'TORRES', ids: ['t-a'] },
       title: 'Nuevo comunicado: Corte de agua el 4 de noviembre',
@@ -21,7 +21,7 @@ describe('aviso de un comunicado', () => {
     });
   });
 
-  it('manda a TODOS sin ids', () => {
+  it('AC8: manda a TODOS sin ids', () => {
     const input = buildAnnouncementNotification({
       ...announcement,
       audience: 'TODOS',
@@ -29,7 +29,9 @@ describe('aviso de un comunicado', () => {
     });
     expect(input.recipient).toEqual({ type: 'TODOS', ids: [] });
   });
+});
 
+describe('aviso de un comunicado', () => {
   it('recorta a 100 caracteres el título del aviso de un comunicado largo', () => {
     const { title } = buildAnnouncementNotification({
       ...announcement,
